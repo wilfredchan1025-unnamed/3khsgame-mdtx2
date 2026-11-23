@@ -97,7 +97,7 @@
     const players = [
       {
         idx: 0,
-        name: mode === 'AI' ? '我方主公' : '玩家一',
+        name: mode === 'AI' ? '我方主公' : mode === 'ONLINE' ? '房主（玩家一）' : '玩家一',
         isAI: false,
         faction: p0Faction,
         hp: INITIAL_HP,
@@ -115,7 +115,7 @@
       },
       {
         idx: 1,
-        name: mode === 'AI' ? '敵軍 AI' : '玩家二',
+        name: mode === 'AI' ? '敵軍 AI' : mode === 'ONLINE' ? '客軍（玩家二）' : '玩家二',
         isAI: mode === 'AI',
         faction: p1Faction,
         hp: INITIAL_HP,
@@ -153,7 +153,8 @@
       ],
       consecutiveNoActionEmptyDeckTurns: 0,
       actedThisTurn: false,
-      vfxEvents: []
+      vfxEvents: [],
+      animEvents: []
     };
   }
 
@@ -164,6 +165,10 @@
 
   function pushVfx(G, targetKey, text, colorClass) {
     G.vfxEvents.push({ targetKey, text, colorClass, id: nextUid++ });
+  }
+
+  function pushAnim(G, evt) {
+    G.animEvents.push(Object.assign({ id: nextUid++ }, evt));
   }
 
   function getTotalFood(p, cardType = 'GENERAL') {
@@ -452,6 +457,7 @@
           p.board[s] = null;
           p.graveyard.push(createCardInstance(u.id));
           deadList.push({ owner: pIdx, slot: s, unit: u });
+          pushAnim(G, { kind: 'death', owner: pIdx, slot: s, name: u.name, icon: u.icon, faction: u.faction });
           addLog(G, `💀 ${p.name} 的【${u.name}】（${SLOT_NAMES[s]}）陣亡，進入墓地！`);
         }
       }
@@ -469,6 +475,7 @@
   function triggerKillBonus(G, killer, killerOwner) {
     if (!killer || !killer.keywords.includes('KILL')) return;
     const enemyIdx = 1 - killerOwner;
+    pushAnim(G, { kind: 'kill_bonus', owner: killerOwner, slot: killer.slot, name: killer.name });
     addLog(G, `⚡ 觸發【${killer.name}】斬殺效果！`);
     Sound.playKill();
     switch (killer.id) {
@@ -721,6 +728,13 @@
     p.hand.splice(handIdx, 1);
     G.actedThisTurn = true;
     Sound.playTactic();
+    pushAnim(G, {
+      kind: 'tactic',
+      owner: pIdx,
+      ownerName: p.name,
+      targetSlot,
+      card: { id: card.id, name: card.name, faction: card.faction, cost: card.cost, icon: card.icon, text: card.text, target: card.target }
+    });
     addLog(G, `${p.name} 消耗 ${card.cost} 糧草打出謀略【${card.name}】！`);
 
     switch (card.id) {
@@ -932,6 +946,7 @@
       attacker.attacksUsed += 1;
       G.actedThisTurn = true;
       Sound.playAttack();
+      pushAnim(G, { kind: 'attack', attackerOwner: pIdx, attackerSlot, targetType: 'HERO', targetOwner: enemyIdx, targetSlot: null, countered: false });
       dealDamageToHero(G, enemyIdx, dmg, `【${attacker.name}】直擊`);
       checkVictory(G);
       return true;
@@ -952,6 +967,7 @@
       addLog(G, `⚔️ ${p.name} 的【${attacker.name}】攻擊 ${enemy.name} 的【${defender.name}】！`);
 
       const atkRes = dealDamageToUnit(G, enemyIdx, targetSlot, atkDmg, attacker.faction, `【${attacker.name}】攻擊`);
+      pushAnim(G, { kind: 'attack', attackerOwner: pIdx, attackerSlot, targetType: 'UNIT', targetOwner: enemyIdx, targetSlot, countered: Boolean(atkRes.countered) });
       const defRes = defDmg > 0
         ? dealDamageToUnit(G, pIdx, attackerSlot, defDmg, defender.faction, `【${defender.name}】反擊`)
         : { killed: false };

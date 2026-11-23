@@ -26,7 +26,18 @@
     aiTimer: null,
     dbFaction: 'SHU',
     dbSubFaction: null,
-    dbCards: []
+    dbCards: [],
+    compFaction: 'ALL',
+    compType: 'ALL',
+    onlineRole: null,
+    onlineRoomCode: '',
+    onlineInputCode: '',
+    onlineStatus: 'IDLE',
+    onlineError: '',
+    onlinePeer: null,
+    onlineConn: null,
+    onlineGuestFaction: null,
+    onlineGuestDeck: null
   };
 
   function showToast(msg, tone = 'gold') {
@@ -46,6 +57,367 @@
       el.style.transform = 'translateY(-6px)';
       setTimeout(() => el.remove(), 260);
     }, 2200);
+  }
+
+
+  function ensureFxStyles() {
+    if (document.getElementById('sanguo-v21-fx')) return;
+    const style = document.createElement('style');
+    style.id = 'sanguo-v21-fx';
+    style.textContent = `
+      @keyframes sgLungeUp {
+        0% { transform: translateY(0) scale(1); }
+        38% { transform: translateY(-28px) scale(1.07); box-shadow: 0 0 24px rgba(251,191,36,0.75); }
+        100% { transform: translateY(0) scale(1); }
+      }
+      @keyframes sgLungeDown {
+        0% { transform: translateY(0) scale(1); }
+        38% { transform: translateY(28px) scale(1.07); box-shadow: 0 0 24px rgba(244,63,94,0.75); }
+        100% { transform: translateY(0) scale(1); }
+      }
+      @keyframes sgHitShake {
+        0%, 100% { transform: translateX(0); }
+        18% { transform: translateX(-8px) rotate(-1.5deg); box-shadow: 0 0 22px rgba(244,63,94,0.85); }
+        42% { transform: translateX(8px) rotate(1.5deg); }
+        68% { transform: translateX(-5px); }
+        85% { transform: translateX(4px); }
+      }
+      @keyframes sgCounterHit {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-9px) scale(1.03); box-shadow: 0 0 28px rgba(251,191,36,0.95); }
+        50% { transform: translateX(9px); }
+        75% { transform: translateX(-4px); }
+      }
+      @keyframes sgDeathBurst {
+        0% { opacity: 0.96; transform: scale(1); filter: saturate(1); }
+        35% { opacity: 0.9; transform: scale(1.06) rotate(-2deg); filter: grayscale(0.7) brightness(1.3); }
+        100% { opacity: 0; transform: scale(0.72) translateY(10px); filter: grayscale(1) blur(2px); }
+      }
+      @keyframes sgKillPulse {
+        0% { box-shadow: 0 0 0 0 rgba(251,191,36,0.85); }
+        50% { box-shadow: 0 0 26px 6px rgba(251,191,36,0.65); }
+        100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); }
+      }
+      @keyframes sgTacticBanner {
+        0% { opacity: 0; transform: translate(-50%, -44%) scale(0.84); }
+        14% { opacity: 1; transform: translate(-50%, -50%) scale(1.03); }
+        22% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        82% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        100% { opacity: 0; transform: translate(-50%, -56%) scale(0.95); }
+      }
+      @keyframes sgTacticTargetFlash {
+        0% { box-shadow: 0 0 0 0 rgba(56,189,248,0.9); }
+        45% { box-shadow: 0 0 24px 6px rgba(56,189,248,0.8); }
+        100% { box-shadow: 0 0 0 0 rgba(56,189,248,0); }
+      }
+      .anim-lunge-up { animation: sgLungeUp 0.44s cubic-bezier(0.22, 1, 0.36, 1); z-index: 20; }
+      .anim-lunge-down { animation: sgLungeDown 0.44s cubic-bezier(0.22, 1, 0.36, 1); z-index: 20; }
+      .anim-hit-shake { animation: sgHitShake 0.44s ease-out; }
+      .anim-counter-hit { animation: sgCounterHit 0.48s ease-out; }
+      .anim-death-ghost { animation: sgDeathBurst 0.62s ease-out forwards; pointer-events: none; }
+      .anim-kill-pulse { animation: sgKillPulse 0.65s ease-out; }
+      .anim-tactic-target { animation: sgTacticTargetFlash 0.7s ease-out; }
+      .tactic-showcase-card {
+        position: fixed;
+        top: 48%;
+        left: 50%;
+        z-index: 70;
+        pointer-events: none;
+        animation: sgTacticBanner 1.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function showTacticShowcase(evt) {
+    ensureFxStyles();
+    const viewIdx = getViewingPlayerIdx();
+    const isMine = evt.owner === viewIdx;
+    const c = evt.card;
+    const f = FACTIONS[c.faction] || FACTIONS.NEU;
+    let root = document.getElementById('tactic-banner-root');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'tactic-banner-root';
+      document.body.appendChild(root);
+    }
+    const el = document.createElement('div');
+    el.className = 'tactic-showcase-card w-[290px] sm:w-[340px] rounded-2xl border-2 p-4 shadow-2xl backdrop-blur-md ' +
+      (isMine
+        ? 'bg-gradient-to-b from-[#1a2438]/95 to-[#0f1524]/95 border-amber-400/90'
+        : 'bg-gradient-to-b from-[#2b141c]/95 to-[#140d14]/95 border-rose-400/90');
+    el.innerHTML = `
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold ${isMine ? 'bg-amber-400 text-slate-950' : 'bg-rose-500 text-white'}">
+          ${isMine ? '✨ 我方施放謀略' : '🔥 敵軍施放謀略'}（${evt.ownerName}）
+        </span>
+        <span class="px-2 py-0.5 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-400/40">${c.cost} 糧</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-slate-900/90 border border-slate-700 flex items-center justify-center text-2xl shrink-0 shadow-inner">${c.icon}</div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span class="font-serif-tc text-lg font-extrabold text-amber-50 truncate">${c.name}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${f.badgeBg}">${f.name}</span>
+          </div>
+          <p class="text-xs text-slate-200 mt-1 leading-relaxed">${c.text}</p>
+        </div>
+      </div>
+    `;
+    root.innerHTML = '';
+    root.appendChild(el);
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 1500);
+  }
+
+
+  // --- Online 1v1 Multiplayer (PeerJS WebRTC, Host-Authoritative) ---
+  const PEER_PREFIX = 'sanguo-mdtx-room-';
+  let peerJsPromise = null;
+
+  function ensurePeerJsLoaded() {
+    if (global.Peer) return Promise.resolve(global.Peer);
+    if (peerJsPromise) return peerJsPromise;
+    peerJsPromise = new Promise((resolve, reject) => {
+      const urls = [
+        'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
+        'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'
+      ];
+      let idx = 0;
+      function tryLoad() {
+        if (idx >= urls.length) {
+          peerJsPromise = null;
+          reject(new Error('無法載入連線模組（請確認網路連線正常）'));
+          return;
+        }
+        const s = document.createElement('script');
+        s.src = urls[idx++];
+        s.async = true;
+        s.onload = () => global.Peer ? resolve(global.Peer) : tryLoad();
+        s.onerror = () => tryLoad();
+        document.head.appendChild(s);
+      }
+      tryLoad();
+    });
+    return peerJsPromise;
+  }
+
+  function cleanupOnlineSession() {
+    try { if (UI.onlineConn) UI.onlineConn.close(); } catch (_) {}
+    try { if (UI.onlinePeer) UI.onlinePeer.destroy(); } catch (_) {}
+    UI.onlineConn = null;
+    UI.onlinePeer = null;
+    UI.onlineRole = null;
+    UI.onlineRoomCode = '';
+    UI.onlineStatus = 'IDLE';
+    UI.onlineError = '';
+    UI.onlineGuestFaction = null;
+    UI.onlineGuestDeck = null;
+  }
+
+  function maskStateForGuest(G) {
+    const clone = JSON.parse(JSON.stringify(G));
+    // Hide Host (player 0) hand & both decks from Guest
+    clone.players[0].hand = clone.players[0].hand.map((_, i) => ({ uid: -1000 - i, hidden: true }));
+    clone.players[0].deck = new Array(clone.players[0].deck.length).fill(null);
+    clone.players[1].deck = new Array(clone.players[1].deck.length).fill(null);
+    return clone;
+  }
+
+  function syncOnlineStateAndRender() {
+    if (UI.G && UI.G.mode === 'ONLINE' && UI.onlineRole === 'HOST' && UI.onlineConn && UI.onlineConn.open) {
+      try {
+        UI.onlineConn.send({ type: 'STATE', state: maskStateForGuest(UI.G) });
+      } catch (err) {
+        console.error('Online state sync failed:', err);
+      }
+    }
+    render();
+  }
+
+  function sendGuestAction(action, payload) {
+    if (!UI.onlineConn || !UI.onlineConn.open) {
+      showToast('連線已中斷，無法傳送指令', 'error');
+      return false;
+    }
+    UI.onlineConn.send({ type: 'ACTION', action, payload });
+    return true;
+  }
+
+  function startOnlineHostMatch() {
+    clearAiTimer();
+    let first = 0;
+    if (UI.firstChoice === 'RANDOM') first = Math.random() < 0.5 ? 0 : 1;
+    else if (UI.firstChoice === 'P1') first = 1;
+
+    UI.G = createGameState({
+      mode: 'ONLINE',
+      p0Faction: UI.p0Faction,
+      p1Faction: UI.onlineGuestFaction || 'WEI',
+      firstPlayer: first,
+      p0Deck: getDeckForFaction(UI.p0Faction),
+      p1Deck: UI.onlineGuestDeck || getDeckForFaction(UI.onlineGuestFaction || 'WEI')
+    });
+    UI.screen = 'GAME';
+    UI.selectedHandUid = null;
+    UI.selectedAttackerSlot = null;
+    UI.mulliganSelected = new Set();
+    UI.hotseatPrivacyFor = null;
+    Sound.playTurn();
+    syncOnlineStateAndRender();
+  }
+
+  function handleHostIncoming(msg) {
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.type === 'HELLO') {
+      UI.onlineGuestFaction = FACTION_LIST.includes(msg.faction) ? msg.faction : 'WEI';
+      UI.onlineGuestDeck = Array.isArray(msg.deck) && validateDeck(UI.onlineGuestFaction, msg.deck).valid
+        ? msg.deck
+        : getDeckForFaction(UI.onlineGuestFaction);
+      UI.onlineStatus = 'CONNECTED';
+      showToast('好友已加入房間，對戰開始！', 'success');
+      startOnlineHostMatch();
+      return;
+    }
+    if (msg.type === 'REMATCH_REQ') {
+      showToast('對手發起再戰一局！', 'success');
+      startOnlineHostMatch();
+      return;
+    }
+    if (msg.type === 'ACTION' && UI.G) {
+      const G = UI.G;
+      const p = msg.payload || {};
+      if (msg.action === 'MULLIGAN' && G.phase === 'MULLIGAN' && G.mulliganActor === 1) {
+        performMulligan(G, 1, Array.isArray(p.selectedUids) ? p.selectedUids : []);
+        syncOnlineStateAndRender();
+        return;
+      }
+      if (G.phase !== 'MAIN' || G.activePlayer !== 1) return;
+      if (msg.action === 'PLAY_GENERAL') {
+        if (playGeneral(G, 1, p.cardUid, p.slotIdx)) syncOnlineStateAndRender();
+      } else if (msg.action === 'PLAY_TACTIC') {
+        if (playTactic(G, 1, p.cardUid, p.targetSlot ?? null)) syncOnlineStateAndRender();
+      } else if (msg.action === 'ATTACK') {
+        if (executeAttack(G, 1, p.attackerSlot, p.targetType, p.targetSlot ?? null)) syncOnlineStateAndRender();
+      } else if (msg.action === 'END_TURN') {
+        endTurn(G);
+        syncOnlineStateAndRender();
+      }
+    }
+  }
+
+  function handleGuestIncoming(msg) {
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.type === 'STATE' && msg.state) {
+      const prevPhase = UI.G ? UI.G.phase : null;
+      const prevTurn = UI.G ? UI.G.turnNumber : 0;
+      UI.G = msg.state;
+      UI.screen = 'GAME';
+      UI.onlineStatus = 'CONNECTED';
+      if (prevPhase !== 'GAME' && UI.G.turnNumber !== prevTurn) {
+        Sound.playTurn();
+      }
+      if (UI.G.phase === 'MAIN' && UI.G.activePlayer !== 1) {
+        UI.selectedHandUid = null;
+        UI.selectedAttackerSlot = null;
+      }
+      render();
+    }
+  }
+
+  async function hostOnlineRoom() {
+    cleanupOnlineSession();
+    UI.onlineRole = 'HOST';
+    UI.onlineStatus = 'LOADING';
+    UI.onlineError = '';
+    render();
+    try {
+      const Peer = await ensurePeerJsLoaded();
+      const code = String(Math.floor(1000 + Math.random() * 9000));
+      UI.onlineRoomCode = code;
+      const peer = new Peer(PEER_PREFIX + code);
+      UI.onlinePeer = peer;
+
+      peer.on('open', () => {
+        UI.onlineStatus = 'WAITING';
+        render();
+      });
+      peer.on('connection', (conn) => {
+        if (UI.onlineConn && UI.onlineConn.open) {
+          conn.close();
+          return;
+        }
+        UI.onlineConn = conn;
+        conn.on('data', handleHostIncoming);
+        conn.on('close', () => {
+          showToast('好友已離開房間或連線中斷', 'error');
+          UI.onlineStatus = 'WAITING';
+          render();
+        });
+      });
+      peer.on('error', (err) => {
+        UI.onlineStatus = 'ERROR';
+        UI.onlineError = '建立房間失敗：' + (err && err.type ? err.type : '連線異常，請重試');
+        render();
+      });
+    } catch (err) {
+      UI.onlineStatus = 'ERROR';
+      UI.onlineError = err.message || '無法載入連線服務';
+      render();
+    }
+  }
+
+  async function joinOnlineRoom(rawCode) {
+    const code = String(rawCode || '').replace(/[^0-9]/g, '').slice(0, 6);
+    if (code.length < 4) {
+      showToast('請輸入 4 位數字房號', 'error');
+      return;
+    }
+    cleanupOnlineSession();
+    UI.onlineRole = 'GUEST';
+    UI.onlineRoomCode = code;
+    UI.onlineInputCode = code;
+    UI.onlineStatus = 'CONNECTING';
+    UI.onlineError = '';
+    render();
+    try {
+      const Peer = await ensurePeerJsLoaded();
+      const peer = new Peer();
+      UI.onlinePeer = peer;
+      peer.on('open', () => {
+        const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
+        UI.onlineConn = conn;
+        conn.on('open', () => {
+          conn.send({
+            type: 'HELLO',
+            faction: UI.p0Faction,
+            deck: getDeckForFaction(UI.p0Faction)
+          });
+        });
+        conn.on('data', handleGuestIncoming);
+        conn.on('close', () => {
+          showToast('與房主的連線已中斷', 'error');
+          UI.onlineStatus = 'ERROR';
+          UI.onlineError = '與房主的連線已中斷';
+          render();
+        });
+        conn.on('error', () => {
+          UI.onlineStatus = 'ERROR';
+          UI.onlineError = '無法連接至該房號，請確認房號是否正確';
+          render();
+        });
+      });
+      peer.on('error', (err) => {
+        UI.onlineStatus = 'ERROR';
+        UI.onlineError = err && err.type === 'peer-unavailable'
+          ? `找不到房號 ${code}，請確認房主已建立房間`
+          : '連線發生錯誤，請重新嘗試';
+        render();
+      });
+    } catch (err) {
+      UI.onlineStatus = 'ERROR';
+      UI.onlineError = err.message || '無法載入連線服務';
+      render();
+    }
   }
 
   function clearAiTimer() {
@@ -71,13 +443,17 @@
     }
 
     if (G.phase === 'MAIN' && G.players[G.activePlayer].isAI) {
+      const delay = UI._nextAiDelay || 720;
+      UI._nextAiDelay = 720;
       UI.aiTimer = setTimeout(() => {
         const acted = runAIStep(G);
+        const hadTactic = Boolean(G.animEvents && G.animEvents.some(a => a.kind === 'tactic'));
         render();
         if (acted && G.phase === 'MAIN' && G.players[G.activePlayer].isAI) {
+          UI._nextAiDelay = hadTactic ? 1550 : 820;
           scheduleAITurnIfNeeded();
         }
-      }, 720);
+      }, delay);
     }
   }
 
@@ -107,6 +483,7 @@
     const G = UI.G;
     if (!G) return 0;
     if (G.mode === 'AI') return 0;
+    if (G.mode === 'ONLINE') return UI.onlineRole === 'GUEST' ? 1 : 0;
     if (G.phase === 'MULLIGAN') return G.mulliganActor;
     return G.activePlayer;
   }
@@ -141,11 +518,11 @@
               </ul>
             </section>
             <section>
-              <h3 class="font-bold text-amber-300 mb-1">二、戰場配置與🛡️中軍保護原則</h3>
+              <h3 class="font-bold text-amber-300 mb-1">二、五格戰場與🛡️相鄰守護機制</h3>
               <ul class="list-disc pl-5 space-y-1 text-slate-300">
                 <li>手牌上限 <b>10 張</b>，超出上限直接進入墓地（爆牌）。</li>
-                <li>每位玩家擁有 3 個上陣位：<b>1號位左翼、2號位中軍、3號位右翼</b>。</li>
-                <li><b>中軍保護原則：</b>當敵方 2號位（中軍）存在存活武將時，己方「普通攻擊」必須優先攻擊中軍，無法攻擊左右兩翼（指向性與全體謀略/技能不受此限）。</li>
+                <li>每位玩家擁有 <b>5 個上陣位</b>：<b>1號位左翼、2號位左輔、3號位中軍、4號位右輔、5號位右翼</b>。所有位置平等，不再設有固定站位保護。</li>
+                <li><b>相鄰守護機制：</b>僅帶有「<b>守護</b>」關鍵字的武將會保護與其相鄰（左一格與右一格）的非守護友軍免受敵方普通攻擊；狙擊與謀略牌不受此限。</li>
                 <li>敵方前排 3 個上陣位全空時，武將方可直接攻擊敵方國力。</li>
               </ul>
             </section>
@@ -213,6 +590,106 @@
     `;
   }
 
+
+  function openCompendiumModal() {
+    const root = document.getElementById('modal-root');
+    const fac = UI.compFaction || 'ALL';
+    const typ = UI.compType || 'ALL';
+
+    const allCards = Object.values(CARD_DB).filter(c => {
+      if (fac !== 'ALL' && c.faction !== fac) return false;
+      if (typ !== 'ALL' && c.type !== typ) return false;
+      return true;
+    }).sort((a, b) => {
+      const fOrder = { SHU: 0, WEI: 1, WU: 2, QUN: 3, NEU: 4 };
+      return (a.token ? 1 : 0) - (b.token ? 1 : 0)
+        || (fOrder[a.faction] ?? 9) - (fOrder[b.faction] ?? 9)
+        || a.cost - b.cost;
+    });
+
+    const facTabs = [
+      { id: 'ALL', label: '全部陣營' },
+      { id: 'SHU', label: '蜀' },
+      { id: 'WEI', label: '魏' },
+      { id: 'WU', label: '吳' },
+      { id: 'QUN', label: '群' },
+      { id: 'NEU', label: '中立' }
+    ];
+    const typeTabs = [
+      { id: 'ALL', label: '全部類型' },
+      { id: 'GENERAL', label: '⚔️ 武將' },
+      { id: 'TACTIC', label: '📜 謀略' }
+    ];
+
+    root.innerHTML = `
+      <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" data-close-modal="1">
+        <div class="bg-[#141923] gold-border rounded-2xl max-w-5xl w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+          <div class="px-5 py-3.5 border-b border-amber-500/25 flex flex-wrap items-center justify-between gap-2 bg-[#1b2230]">
+            <div class="flex items-center gap-2.5">
+              <h2 class="font-serif-tc text-lg sm:text-xl font-bold text-amber-300">📚 全卡牌圖鑑</h2>
+              <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-200 border border-amber-400/40">顯示 ${allCards.length} 張</span>
+            </div>
+            <button type="button" data-close-modal="1" class="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800">✕</button>
+          </div>
+
+          <div class="px-5 py-3 bg-[#101520] border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap gap-1.5">
+              ${facTabs.map(t => `
+                <button type="button" data-comp-faction="${t.id}" class="px-2.5 py-1 rounded-lg text-xs font-bold border transition ${fac === t.id ? 'bg-amber-500 text-slate-950 border-amber-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'}">
+                  ${t.label}
+                </button>
+              `).join('')}
+            </div>
+            <div class="flex gap-1.5">
+              ${typeTabs.map(t => `
+                <button type="button" data-comp-type="${t.id}" class="px-2.5 py-1 rounded-lg text-xs font-bold border transition ${typ === t.id ? 'bg-indigo-500 text-white border-indigo-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'}">
+                  ${t.label}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="p-4 sm:p-5 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${allCards.map(c => {
+              const f = FACTIONS[c.faction] || FACTIONS.NEU;
+              return `
+                <div class="p-3 rounded-xl bg-[#181f2d] border border-slate-700/80 flex flex-col justify-between gap-2">
+                  <div>
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-base shrink-0">${c.icon}</span>
+                        <div class="min-w-0">
+                          <div class="flex items-center gap-1.5">
+                            <span class="font-serif-tc font-bold text-sm text-amber-50 truncate">${c.name}</span>
+                            ${c.token ? `<span class="text-[9px] px-1 py-0.5 rounded bg-slate-700 text-slate-300">衍生</span>` : ''}
+                          </div>
+                          <div class="flex items-center gap-1 mt-0.5">
+                            <span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span>
+                            <span class="text-[10px] text-slate-400">${c.type === 'GENERAL' ? '武將' : '謀略'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-black shrink-0">${c.cost} 糧</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                      ${c.type === 'GENERAL' ? `
+                        <span class="text-[11px] font-extrabold text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded">⚔️ ${c.atk}</span>
+                        <span class="text-[11px] font-extrabold text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">❤️ ${c.hp}</span>
+                        ${c.armor ? `<span class="text-[11px] font-extrabold text-sky-300 bg-sky-500/15 px-1.5 py-0.5 rounded">🛡️ ${c.armor}</span>` : ''}
+                      ` : ''}
+                      ${(c.keywords || []).map(keywordBadgeHtml).join('')}
+                    </div>
+                    <p class="text-xs text-slate-200 mt-2 leading-relaxed">${c.text}</p>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function closeModal() {
     const root = document.getElementById('modal-root');
     if (root) root.innerHTML = '';
@@ -255,7 +732,7 @@
               三國・謀定天下
             </h1>
             <p class="text-slate-300 text-sm sm:text-base mt-2 max-w-xl mx-auto">
-              中軍鐵壁護兩翼，糧草調度定乾坤。蜀、群、魏、吳四大陣營循環克制，運籌帷幄逐鹿中原。
+              五格排陣相鄰守護，糧倉調度定乾坤。蜀、群、魏、吳雙陣營合縱連橫，運籌帷幄逐鹿中原。
             </p>
             <div class="mt-4 inline-flex flex-wrap items-center justify-center gap-1.5 text-xs bg-slate-950/70 px-3.5 py-1.5 rounded-full border border-slate-700/80">
               <span class="text-slate-400 mr-1">陣營克制 (+1傷):</span>
@@ -271,21 +748,24 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-semibold text-amber-300/90 uppercase tracking-wider mb-2">對戰模式</label>
-                <div class="grid grid-cols-2 gap-2">
-                  <button type="button" data-set-mode="AI" class="py-2.5 px-3 rounded-xl border text-sm font-semibold transition ${UI.lobbyMode === 'AI' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">
-                    🤖 單人對戰 AI
+                <div class="grid grid-cols-3 gap-2">
+                  <button type="button" data-set-mode="AI" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.lobbyMode === 'AI' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">
+                    🤖 單人 AI
                   </button>
-                  <button type="button" data-set-mode="HOTSEAT" class="py-2.5 px-3 rounded-xl border text-sm font-semibold transition ${UI.lobbyMode === 'HOTSEAT' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">
-                    ⚔️ 雙人同屏 1v1
+                  <button type="button" data-set-mode="HOTSEAT" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.lobbyMode === 'HOTSEAT' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">
+                    ⚔️ 同屏 1v1
+                  </button>
+                  <button type="button" data-set-mode="ONLINE" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.lobbyMode === 'ONLINE' ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">
+                    🌐 線上好友
                   </button>
                 </div>
               </div>
               <div>
-                <label class="block text-xs font-semibold text-amber-300/90 uppercase tracking-wider mb-2">先後手順序</label>
+                <label class="block text-xs font-semibold text-amber-300/90 uppercase tracking-wider mb-2">先後手順序${UI.lobbyMode === 'ONLINE' ? '（由房主決定）' : ''}</label>
                 <div class="grid grid-cols-3 gap-2">
                   <button type="button" data-set-first="RANDOM" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.firstChoice === 'RANDOM' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300'}">🎲 隨機</button>
-                  <button type="button" data-set-first="P0" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.firstChoice === 'P0' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300'}">${UI.lobbyMode === 'AI' ? '我方先手' : '玩家一先'}</button>
-                  <button type="button" data-set-first="P1" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.firstChoice === 'P1' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300'}">${UI.lobbyMode === 'AI' ? 'AI 先手' : '玩家二先'}</button>
+                  <button type="button" data-set-first="P0" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.firstChoice === 'P0' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300'}">${UI.lobbyMode === 'AI' ? '我方先手' : UI.lobbyMode === 'ONLINE' ? '房主先手' : '玩家一先'}</button>
+                  <button type="button" data-set-first="P1" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.firstChoice === 'P1' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300'}">${UI.lobbyMode === 'AI' ? 'AI 先手' : UI.lobbyMode === 'ONLINE' ? '客軍先手' : '玩家二先'}</button>
                 </div>
               </div>
             </div>
@@ -293,22 +773,71 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-bold text-amber-200">${UI.lobbyMode === 'AI' ? '我方主陣營' : '玩家一主陣營'}</span>
+                  <span class="text-sm font-bold text-amber-200">${UI.lobbyMode === 'HOTSEAT' ? '玩家一主陣營' : '我方出戰陣營'}</span>
                 </div>
                 <div class="grid grid-cols-2 gap-2.5">${renderFactionCards(UI.p0Faction, 'p0')}</div>
               </div>
+              ${UI.lobbyMode === 'ONLINE' ? `
+              <div class="flex flex-col justify-between p-4 rounded-xl bg-slate-900/80 border border-emerald-500/35 space-y-4">
+                <div>
+                  <div class="text-sm font-bold text-emerald-300 mb-1">🌐 好友房號連線（免伺服器）</div>
+                  <p class="text-xs text-slate-400 leading-relaxed">先在左側選好你的出戰陣營，再選擇「建立房間」把房號或連結傳給好友，或輸入好友的房號直接加入。</p>
+                </div>
+
+                <div class="space-y-2.5">
+                  <button type="button" data-action="online-host" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition">
+                    🏯 建立房間（我是房主）
+                  </button>
+                  ${UI.onlineRole === 'HOST' && UI.onlineStatus === 'WAITING' ? `
+                    <div class="p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/50 space-y-2">
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs text-emerald-200">房間已建立！等待好友加入…</span>
+                        <span class="font-mono text-lg font-black tracking-widest text-amber-300">${UI.onlineRoomCode}</span>
+                      </div>
+                      <div class="flex gap-2">
+                        <button type="button" data-action="copy-room-code" class="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-100 border border-slate-600">📋 複製房號</button>
+                        <button type="button" data-action="copy-invite-link" class="flex-1 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-xs text-amber-200 border border-amber-400/50">🔗 複製邀請連結</button>
+                      </div>
+                    </div>
+                  ` : ''}
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 space-y-2">
+                  <label class="block text-xs font-semibold text-slate-300">已有好友房號？直接加入：</label>
+                  <div class="flex gap-2">
+                    <input id="online-room-input" type="text" maxlength="6" inputmode="numeric" placeholder="輸入 4 位房號"
+                      value="${UI.onlineInputCode}"
+                      class="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-amber-200 font-mono text-sm tracking-widest focus:outline-none focus:border-emerald-400" />
+                    <button type="button" data-action="online-join" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm">
+                      加入
+                    </button>
+                  </div>
+                </div>
+
+                ${UI.onlineStatus === 'LOADING' || UI.onlineStatus === 'CONNECTING' ? `
+                  <div class="text-xs text-amber-300 font-medium">⏳ ${UI.onlineStatus === 'LOADING' ? '正在載入連線模組並建立房間…' : `正在連線至房號 ${UI.onlineRoomCode}…`}</div>
+                ` : ''}
+                ${UI.onlineError ? `
+                  <div class="text-xs text-rose-300 bg-rose-950/60 border border-rose-500/40 rounded-lg px-3 py-2">⚠️ ${UI.onlineError}</div>
+                ` : ''}
+              </div>
+              ` : `
               <div>
                 <div class="flex items-center justify-between mb-2">
                   <span class="text-sm font-bold text-rose-200">${UI.lobbyMode === 'AI' ? '敵軍 AI 主陣營' : '玩家二主陣營'}</span>
                 </div>
                 <div class="grid grid-cols-2 gap-2.5">${renderFactionCards(UI.p1Faction, 'p1')}</div>
               </div>
+              `}
             </div>
 
             <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
               <div class="flex flex-wrap gap-2">
                 <button type="button" data-action="open-deckbuilder" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">
                   🃏 組牌工坊（30張）
+                </button>
+                <button type="button" data-action="open-compendium" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">
+                  📚 卡牌圖鑑
                 </button>
                 <button type="button" data-action="open-rules" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">
                   📜 完整規則手冊
@@ -317,9 +846,13 @@
                   ${Sound.muted ? '🔇 靜音' : '🔊 音效'}
                 </button>
               </div>
-              <button type="button" data-action="start-match" class="px-7 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold text-base shadow-lg gold-glow transition">
-                ⚔️ 鳴鼓開戰
-              </button>
+              ${UI.lobbyMode === 'ONLINE' ? `
+                <span class="text-xs text-emerald-300/90 font-medium">🌐 請於右側建立或加入房間開始連線對戰</span>
+              ` : `
+                <button type="button" data-action="start-match" class="px-7 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold text-base shadow-lg gold-glow transition">
+                  ⚔️ 鳴鼓開戰
+                </button>
+              `}
             </div>
           </div>
         </div>
@@ -453,15 +986,30 @@
       }
     }
 
-    const isCenter = slotIdx === 1;
+    const hasGuard = unitHasGuard(u);
+    const anims = G.animEvents || [];
+    const didAttack = anims.some(a => a.kind === 'attack' && a.attackerOwner === ownerIdx && a.attackerSlot === slotIdx);
+    const hitEvt = anims.find(a => a.kind === 'attack' && a.targetType === 'UNIT' && a.targetOwner === ownerIdx && a.targetSlot === slotIdx);
+    const didKillBonus = anims.some(a => a.kind === 'kill_bonus' && a.owner === ownerIdx && a.slot === slotIdx);
+    const tacticHit = anims.some(a => a.kind === 'tactic' && (
+      (a.card.target === 'enemy_general' && a.owner !== ownerIdx && a.targetSlot === slotIdx) ||
+      (a.card.target === 'ally_general' && a.owner === ownerIdx && a.targetSlot === slotIdx)
+    ));
+    const animClasses = [
+      didAttack ? (isOpponentSide ? 'anim-lunge-down' : 'anim-lunge-up') : '',
+      hitEvt ? (hitEvt.countered ? 'anim-counter-hit' : 'anim-hit-shake') : '',
+      didKillBonus ? 'anim-kill-pulse' : '',
+      tacticHit ? 'anim-tactic-target' : ''
+    ].filter(Boolean).join(' ');
+
     const stateClasses = isSelectedAttacker
       ? 'ring-2 ring-amber-400 shadow-lg scale-[1.02]'
       : isValidTarget
       ? 'target-valid'
       : ready
       ? 'attack-ready cursor-pointer'
-      : isCenter
-      ? 'center-guard-aura'
+      : hasGuard
+      ? 'border-indigo-400/75 shadow-[0_0_14px_rgba(99,102,241,0.3)]'
       : 'border-slate-700/90';
 
     const effectsHtml = u.effects.map(e => {
@@ -475,7 +1023,7 @@
 
     return `
       <div data-unit-click="${ownerIdx}:${slotIdx}"
-        class="relative w-full h-full min-h-[126px] sm:min-h-[138px] rounded-xl bg-gradient-to-b from-[#1e2536] to-[#121722] border p-2.5 flex flex-col justify-between transition select-none ${stateClasses} ${u.isPrep ? 'opacity-85' : ''}">
+        class="relative w-full h-full min-h-[126px] sm:min-h-[138px] rounded-xl bg-gradient-to-b from-[#1e2536] to-[#121722] border p-2.5 flex flex-col justify-between transition select-none ${stateClasses} ${animClasses} ${u.isPrep ? 'opacity-85' : ''}">
         <div class="flex items-start justify-between gap-1">
           <div class="flex items-center gap-1.5 min-w-0">
             <span class="text-base leading-none">${u.icon}</span>
@@ -503,7 +1051,7 @@
         </div>
 
         ${counterBonusHint ? `<div class="absolute -top-2.5 right-2 px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black shadow">克制 +1傷!</div>` : ''}
-        ${isCenter ? `<div class="absolute -top-2.5 left-2 px-1.5 py-0.5 rounded-full bg-amber-500/90 text-slate-950 text-[9px] font-black shadow">🛡️中軍保護</div>` : ''}
+        ${hasGuard ? `<div class="absolute -top-2.5 left-2 px-1.5 py-0.5 rounded-full bg-indigo-500 text-white text-[9px] font-black shadow">🛡️守護者</div>` : ''}
       </div>
     `;
   }
@@ -521,10 +1069,17 @@
       <div class="grid grid-cols-5 gap-1.5 sm:gap-2.5 w-full">
         ${Array.from({ length: BOARD_SIZE }, (_, slotIdx) => {
           const u = G.players[ownerIdx].board[slotIdx];
-          const isCenter = slotIdx === 2;
           const slotKey = `unit-${ownerIdx}-${slotIdx}`;
           const vfx = G.vfxEvents.filter(v => v.targetKey === slotKey);
           const vfxHtml = vfx.map(v => `<div class="float-dmg text-sm sm:text-base ${v.colorClass}">${v.text}</div>`).join('');
+          const deathEvt = (G.animEvents || []).find(a => a.kind === 'death' && a.owner === ownerIdx && a.slot === slotIdx);
+          const deathGhostHtml = deathEvt ? `
+            <div class="anim-death-ghost absolute inset-0 z-20 rounded-xl bg-rose-950/85 border-2 border-rose-500/80 flex flex-col items-center justify-center p-2">
+              <span class="text-2xl">${deathEvt.icon}</span>
+              <span class="font-serif-tc text-xs font-extrabold text-rose-200 mt-0.5">${deathEvt.name}</span>
+              <span class="text-[11px] font-black text-rose-400 mt-0.5">💀 陣亡</span>
+            </div>
+          ` : '';
 
           if (u) {
             const guarded = isProtectedByAdjacentGuard(G.players[ownerIdx].board, slotIdx);
@@ -533,9 +1088,10 @@
           }
           return `
             <div data-empty-slot="${ownerIdx}:${slotIdx}"
-              class="relative min-h-[120px] sm:min-h-[136px] rounded-xl border border-dashed ${isCenter ? 'border-amber-500/45 bg-amber-500/[0.04]' : 'border-slate-700/70 bg-slate-900/40'} flex flex-col items-center justify-center p-1.5 text-center transition ${isDeployingGeneral ? 'slot-deployable' : ''}">
-              <span class="text-[10px] sm:text-[11px] font-semibold ${isCenter ? 'text-amber-400/80' : 'text-slate-500'}">${SLOT_NAMES[slotIdx]}</span>
+              class="relative min-h-[120px] sm:min-h-[136px] rounded-xl border border-dashed border-slate-700/70 bg-slate-900/40 flex flex-col items-center justify-center p-1.5 text-center transition ${isDeployingGeneral ? 'slot-deployable' : ''}">
+              <span class="text-[10px] sm:text-[11px] font-semibold text-slate-500">${SLOT_NAMES[slotIdx]}</span>
               ${isDeployingGeneral ? `<span class="mt-2 px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-bold">點擊上陣</span>` : ''}
+              ${deathGhostHtml}
               ${vfxHtml}
             </div>
           `;
@@ -559,6 +1115,7 @@
 
     const hpPct = Math.max(0, Math.min(100, (p.hp / p.maxHp) * 100));
     const vfx = G.vfxEvents.filter(v => v.targetKey === `hero-${pIdx}`);
+    const heroHit = (G.animEvents || []).some(a => a.kind === 'attack' && a.targetType === 'HERO' && a.targetOwner === pIdx);
     const vfxHtml = vfx.map(v => `<div class="float-dmg text-base ${v.colorClass}">${v.text}</div>`).join('');
 
     return `
@@ -659,6 +1216,17 @@
     const G = UI.G;
     const actor = G.mulliganActor;
     const p = G.players[actor];
+    if (G.mode === 'ONLINE' && actor !== getViewingPlayerIdx()) {
+      return `
+        <div class="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-[#141923] gold-border rounded-2xl max-w-md w-full p-6 text-center shadow-2xl">
+            <div class="text-3xl mb-2">⏳</div>
+            <h2 class="font-serif-tc text-xl font-bold text-amber-300">等待對手完成起手調度…</h2>
+            <p class="text-xs text-slate-300 mt-2">目前由 ${p.name} 選擇初始手牌，請稍候片刻。</p>
+          </div>
+        </div>
+      `;
+    }
     if (p.isAI) {
       return `
         <div class="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -776,7 +1344,7 @@
       const card = G.players[viewIdx].hand.find(c => c.uid === UI.selectedHandUid);
       if (card) {
         if (card.type === 'GENERAL') return `已選武將【${card.name}】— 請點擊己方空置的上陣位部署（點擊取消可撤回）`;
-        if (card.target === 'enemy_general') return `已選謀略【${card.name}】— 請點擊任意敵方存活武將（無視中軍保護）`;
+        if (card.target === 'enemy_general') return `已選謀略【${card.name}】— 請點擊任意敵方存活武將（無視守護保護）`;
         if (card.target === 'ally_general') return `已選謀略【${card.name}】— 請點擊一名友方存活武將`;
         return `已選謀略【${card.name}】— 再次點擊此牌或按「確認施放」立即生效`;
       }
@@ -787,7 +1355,7 @@
       const valid = getValidAttackTargets(G, viewIdx, UI.selectedAttackerSlot);
       if (valid.canHitHero) return `⚔️【${u.name}】準備出擊 — 敵方前排空虛，請點擊上方敵方國力條直接攻擊！`;
       if (G.players[1 - viewIdx].board.some(eu => unitHasGuard(eu)) && !u.keywords.includes('SNIPE')) return `⚔️【${u.name}】準備出擊 — 🛡️ 敵方守護武將正在保護相鄰友軍，請選擇合法攻擊目標！`;
-      return `⚔️【${u.name}】準備出擊 — 敵方中軍已陣亡，可自由點擊任意敵方存活武將！`;
+      return `⚔️【${u.name}】準備出擊 — 請點擊任意敵方存活武將發動攻擊！`;
     }
 
     return '主要階段：點擊手牌部署武將或施放謀略，或點擊綠框武將發動攻擊。';
@@ -809,6 +1377,7 @@
           <div class="flex items-center gap-2 sm:gap-3">
             <span class="font-serif-tc font-bold text-base sm:text-lg text-amber-300">三國·謀定天下</span>
             <span class="px-2 py-0.5 rounded bg-slate-800 text-xs text-slate-200 font-semibold">第 ${roundNum} 回合</span>
+            ${G.mode === 'ONLINE' ? `<span class="px-2 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 text-xs font-bold">🌐 房號 ${UI.onlineRoomCode}（${UI.onlineRole === 'HOST' ? '房主' : '客軍'}）</span>` : ''}
             <span class="hidden md:inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
               克制(+1): <b class="text-emerald-300">蜀</b>▶<b class="text-purple-300">群</b>▶<b class="text-blue-300">魏</b>▶<b class="text-red-300">吳</b>▶<b class="text-emerald-300">蜀</b>
             </span>
@@ -816,6 +1385,9 @@
           <div class="flex items-center gap-1.5 sm:gap-2">
             <button type="button" data-action="toggle-log" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">
               📜 戰報 (${G.log.length})
+            </button>
+            <button type="button" data-action="open-compendium" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">
+              📚 圖鑑
             </button>
             <button type="button" data-action="open-rules" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">
               📖 規則
@@ -886,14 +1458,22 @@
   }
 
   function render() {
+    ensureFxStyles();
     const app = document.getElementById('app');
     if (!app) return;
     if (UI.screen === 'LOBBY') app.innerHTML = renderLobby();
     else if (UI.screen === 'DECKBUILDER') app.innerHTML = renderDeckBuilder();
     else if (UI.screen === 'GAME') {
+      const tacticEvts = (UI.G && UI.G.animEvents) ? UI.G.animEvents.filter(a => a.kind === 'tactic') : [];
       app.innerHTML = renderGame();
+      if (tacticEvts.length > 0) {
+        showTacticShowcase(tacticEvts[tacticEvts.length - 1]);
+      }
       if (UI.G && UI.G.vfxEvents.length > 0) {
         UI.G.vfxEvents = [];
+      }
+      if (UI.G && UI.G.animEvents && UI.G.animEvents.length > 0) {
+        UI.G.animEvents = [];
       }
     }
   }
@@ -901,6 +1481,19 @@
   document.addEventListener('click', (e) => {
     if (e.target.closest('[data-close-modal]')) {
       closeModal();
+      return;
+    }
+
+    const compFac = e.target.closest('[data-comp-faction]');
+    if (compFac) {
+      UI.compFaction = compFac.getAttribute('data-comp-faction');
+      openCompendiumModal();
+      return;
+    }
+    const compTyp = e.target.closest('[data-comp-type]');
+    if (compTyp) {
+      UI.compType = compTyp.getAttribute('data-comp-type');
+      openCompendiumModal();
       return;
     }
 
@@ -986,6 +1579,7 @@
     if (actBtn) {
       const action = actBtn.getAttribute('data-action');
       if (action === 'open-rules') { openRulebookModal(); return; }
+      if (action === 'open-compendium') { openCompendiumModal(); return; }
       if (action === 'toggle-mute') { Sound.muted = !Sound.muted; render(); return; }
       if (action === 'open-deckbuilder') {
         UI.dbFaction = UI.p0Faction;
@@ -1013,9 +1607,40 @@
         render();
         return;
       }
-      if (action === 'start-match' || action === 'rematch') { startNewMatch(); return; }
+      if (action === 'online-host') { hostOnlineRoom(); return; }
+      if (action === 'online-join') {
+        const inp = document.getElementById('online-room-input');
+        const val = inp ? inp.value : UI.onlineInputCode;
+        joinOnlineRoom(val);
+        return;
+      }
+      if (action === 'copy-room-code') {
+        if (navigator.clipboard) navigator.clipboard.writeText(UI.onlineRoomCode).catch(() => {});
+        showToast(`已複製房號：${UI.onlineRoomCode}`, 'success');
+        return;
+      }
+      if (action === 'copy-invite-link') {
+        const url = `${location.origin}${location.pathname}?room=${UI.onlineRoomCode}`;
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+        showToast('已複製好友邀請連結！直接傳給好友即可加入', 'success');
+        return;
+      }
+      if (action === 'start-match') { startNewMatch(); return; }
+      if (action === 'rematch') {
+        if (UI.G && UI.G.mode === 'ONLINE') {
+          if (UI.onlineRole === 'HOST') startOnlineHostMatch();
+          else if (UI.onlineConn && UI.onlineConn.open) {
+            UI.onlineConn.send({ type: 'REMATCH_REQ' });
+            showToast('已向房主發送再戰請求…');
+          }
+          return;
+        }
+        startNewMatch();
+        return;
+      }
       if (action === 'back-lobby') {
         clearAiTimer();
+        if (UI.G && UI.G.mode === 'ONLINE') cleanupOnlineSession();
         UI.screen = 'LOBBY';
         UI.G = null;
         render();
@@ -1034,23 +1659,33 @@
         return;
       }
       if (action === 'confirm-mulligan' && UI.G) {
-        const actor = UI.G.mulliganActor;
-        performMulligan(UI.G, actor, Array.from(UI.mulliganSelected));
+        const selected = Array.from(UI.mulliganSelected);
         UI.mulliganSelected = new Set();
+        if (UI.G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+          sendGuestAction('MULLIGAN', { selectedUids: selected });
+          return;
+        }
+        const actor = UI.G.mulliganActor;
+        performMulligan(UI.G, actor, selected);
         if (UI.G.mode === 'HOTSEAT') {
           if (UI.G.phase === 'MULLIGAN') UI.hotseatPrivacyFor = UI.G.mulliganActor;
           else UI.hotseatPrivacyFor = UI.G.activePlayer;
         }
-        render();
+        syncOnlineStateAndRender();
         scheduleAITurnIfNeeded();
         return;
       }
       if (action === 'cast-selected-tactic' && UI.G) {
         const viewIdx = getViewingPlayerIdx();
         if (UI.selectedHandUid !== null) {
-          const ok = playTactic(UI.G, viewIdx, UI.selectedHandUid, null);
-          if (ok) UI.selectedHandUid = null;
-          render();
+          const uid = UI.selectedHandUid;
+          UI.selectedHandUid = null;
+          if (UI.G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+            sendGuestAction('PLAY_TACTIC', { cardUid: uid, targetSlot: null });
+            return;
+          }
+          playTactic(UI.G, viewIdx, uid, null);
+          syncOnlineStateAndRender();
         }
         return;
       }
@@ -1059,11 +1694,15 @@
         if (UI.G.phase === 'MAIN' && UI.G.activePlayer === viewIdx && !UI.G.players[viewIdx].isAI) {
           UI.selectedHandUid = null;
           UI.selectedAttackerSlot = null;
+          if (UI.G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+            sendGuestAction('END_TURN', {});
+            return;
+          }
           endTurn(UI.G);
           if (UI.G.mode === 'HOTSEAT' && UI.G.phase === 'MAIN') {
             UI.hotseatPrivacyFor = UI.G.activePlayer;
           }
-          render();
+          syncOnlineStateAndRender();
           scheduleAITurnIfNeeded();
         }
         return;
@@ -1085,16 +1724,20 @@
         if (getTotalFood(G.players[viewIdx], card.type) < card.cost) {
           showToast(`糧草不足（需要 ${card.cost}，目前 ${getTotalFood(G.players[viewIdx], card.type)}）`, 'error');
         } else if (card.type === 'GENERAL') {
-          showToast('己方 3 個上陣位已滿，無法部署新武將', 'error');
+          showToast('己方 5 個上陣位已滿，無法部署新武將', 'error');
         } else {
           showToast('目前場上無符合條件的合法目標', 'error');
         }
         return;
       }
       if (UI.selectedHandUid === uid && card.type === 'TACTIC' && card.target === 'none') {
-        playTactic(G, viewIdx, uid, null);
         UI.selectedHandUid = null;
-        render();
+        if (G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+          sendGuestAction('PLAY_TACTIC', { cardUid: uid, targetSlot: null });
+          return;
+        }
+        playTactic(G, viewIdx, uid, null);
+        syncOnlineStateAndRender();
         return;
       }
       UI.selectedAttackerSlot = null;
@@ -1110,9 +1753,14 @@
       if (owner === viewIdx) {
         const card = G.players[viewIdx].hand.find(c => c.uid === UI.selectedHandUid);
         if (card && card.type === 'GENERAL') {
+          if (G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+            UI.selectedHandUid = null;
+            sendGuestAction('PLAY_GENERAL', { cardUid: card.uid, slotIdx: slot });
+            return;
+          }
           if (playGeneral(G, viewIdx, card.uid, slot)) {
             UI.selectedHandUid = null;
-            render();
+            syncOnlineStateAndRender();
           }
         }
       }
@@ -1128,9 +1776,14 @@
         const card = G.players[viewIdx].hand.find(c => c.uid === UI.selectedHandUid);
         if (card && card.type === 'TACTIC') {
           if ((card.target === 'enemy_general' && owner !== viewIdx) || (card.target === 'ally_general' && owner === viewIdx)) {
+            if (G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+              UI.selectedHandUid = null;
+              sendGuestAction('PLAY_TACTIC', { cardUid: card.uid, targetSlot: slot });
+              return;
+            }
             if (playTactic(G, viewIdx, card.uid, slot)) {
               UI.selectedHandUid = null;
-              render();
+              syncOnlineStateAndRender();
               return;
             }
           }
@@ -1140,9 +1793,14 @@
       if (UI.selectedAttackerSlot !== null && owner !== viewIdx) {
         const valid = getValidAttackTargets(G, viewIdx, UI.selectedAttackerSlot);
         if (valid.slots.includes(slot)) {
-          executeAttack(G, viewIdx, UI.selectedAttackerSlot, 'UNIT', slot);
+          const atkSlot = UI.selectedAttackerSlot;
           UI.selectedAttackerSlot = null;
-          render();
+          if (G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+            sendGuestAction('ATTACK', { attackerSlot: atkSlot, targetType: 'UNIT', targetSlot: slot });
+            return;
+          }
+          executeAttack(G, viewIdx, atkSlot, 'UNIT', slot);
+          syncOnlineStateAndRender();
           return;
         } else if (isProtectedByAdjacentGuard(G.players[1 - viewIdx].board, slot)) {
           Sound.playError();
@@ -1174,9 +1832,14 @@
       if (targetOwner !== viewIdx) {
         const valid = getValidAttackTargets(G, viewIdx, UI.selectedAttackerSlot);
         if (valid.canHitHero) {
-          executeAttack(G, viewIdx, UI.selectedAttackerSlot, 'HERO');
+          const atkSlot = UI.selectedAttackerSlot;
           UI.selectedAttackerSlot = null;
-          render();
+          if (G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+            sendGuestAction('ATTACK', { attackerSlot: atkSlot, targetType: 'HERO', targetSlot: null });
+            return;
+          }
+          executeAttack(G, viewIdx, atkSlot, 'HERO');
+          syncOnlineStateAndRender();
         } else {
           Sound.playError();
           showToast('敵方前排仍有武將駐守，無法直接攻擊敵方國力！', 'error');
