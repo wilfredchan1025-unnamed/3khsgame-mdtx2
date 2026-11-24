@@ -3,15 +3,17 @@
 
   const {
     BOARD_SIZE,
-    isCountering,
     getUnitAtk,
     canUnitAttack,
+    canUseActiveSkill,
     getTotalFood,
     getValidAttackTargets,
     getValidTacticTargets,
     canPlayCard,
     playGeneral,
     playTactic,
+    activateUnitSkill,
+    resolvePendingPrompt,
     executeAttack,
     endTurn
   } = global.Sanguo;
@@ -28,6 +30,40 @@
     const oppIdx = 1 - aiIdx;
     const opp = G.players[oppIdx];
 
+    // 1. Resolve any pending prompt for AI (choice, target enemy, zhiheng, or over-limit discard)
+    if (G.pendingPrompt && G.pendingPrompt.owner === aiIdx) {
+      const pr = G.pendingPrompt;
+      if (pr.kind === 'DISCARD') {
+        const sorted = ai.hand.slice().sort((a, b) => b.cost - a.cost);
+        resolvePendingPrompt(G, aiIdx, { selectedUids: sorted.slice(0, pr.count).map(c => c.uid) });
+        return true;
+      }
+      if (pr.kind === 'ZHIHENG') {
+        const high = ai.hand.slice().sort((a, b) => b.cost - a.cost);
+        resolvePendingPrompt(G, aiIdx, { selectedUids: high.slice(0, 1).map(c => c.uid) });
+        return true;
+      }
+      if (pr.kind === 'TARGET_ENEMY') {
+        const slots = [];
+        for (let s = 0; s < BOARD_SIZE; s++) {
+          if (opp.board[s]) slots.push(s);
+        }
+        if (slots.length > 0) {
+          slots.sort((a, b) => getUnitAtk(opp.board[b], G) - getUnitAtk(opp.board[a], G));
+          resolvePendingPrompt(G, aiIdx, { slot: slots[0] });
+          return true;
+        }
+        G.pendingPrompt = null;
+        return true;
+      }
+      if (pr.kind === 'CHOICE') {
+        const opt = pr.options[0];
+        resolvePendingPrompt(G, aiIdx, { choiceId: opt.id });
+        return true;
+      }
+    }
+
+    // 2. Use rapid_march if it unlocks a card
     const rm = ai.hand.find(c => c.id === 'rapid_march');
     if (rm) {
       const currentFood = getTotalFood(ai, 'GENERAL');
@@ -38,9 +74,20 @@
       }
     }
 
+    // 3. Use beneficial active skills
+    for (let s = 0; s < BOARD_SIZE; s++) {
+      if (canUseActiveSkill(G, aiIdx, s)) {
+        const u = ai.board[s];
+        if (u.id === 'wu_huanggai' && ai.hp <= 12) continue;
+        if (u.id === 'wei_caoren' && u.atk <= 1) continue;
+        if (activateUnitSkill(G, aiIdx, s)) return true;
+      }
+    }
+
+    // 4. Execute attacks
     for (let s = 0; s < BOARD_SIZE; s++) {
       const u = ai.board[s];
-      if (!canUnitAttack(u)) continue;
+      if (!canUnitAttack(u, G)) continue;
       const valid = getValidAttackTargets(G, aiIdx, s);
       if (valid.canHitHero) {
         executeAttack(G, aiIdx, s, 'HERO');
@@ -50,11 +97,11 @@
         let bestSlot = valid.slots[0], bestScore = -999;
         for (const ts of valid.slots) {
           const def = opp.board[ts];
-          const dmg = getUnitAtk(u) + (isCountering(u.faction, def.faction) ? 1 : 0);
+          const dmg = getUnitAtk(u, G);
           const kills = (dmg - def.armor) >= def.hp;
-          const retal = getUnitAtk(def) + (isCountering(def.faction, u.faction) ? 1 : 0);
+          const retal = getUnitAtk(def, G);
           const survives = (retal - u.armor) < u.hp;
-          const score = (kills ? 30 : 0) + (survives ? 15 : -10) + getUnitAtk(def) * 3 + (isCountering(u.faction, def.faction) ? 6 : 0);
+          const score = (kills ? 30 : 0) + (survives ? 15 : -10) + getUnitAtk(def, G) * 3;
           if (score > bestScore) { bestScore = score; bestSlot = ts; }
         }
         executeAttack(G, aiIdx, s, 'UNIT', bestSlot);
@@ -62,13 +109,10 @@
       }
     }
 
+    // 5. Play cards
     const playable = ai.hand.filter(c => c.id !== 'rapid_march' && canPlayCard(G, aiIdx, c));
     if (playable.length > 0) {
-      playable.sort((a, b) => {
-        const aScore = a.cost * 10 + (a.type === 'GENERAL' ? 8 : 0);
-        const bScore = b.cost * 10 + (b.type === 'GENERAL' ? 8 : 0);
-        return bScore - aScore;
-      });
+      playable.sort((a, b) => (b.cost * 10 + (b.type === 'GENERAL' ? 8 : 0)) - (a.cost * 10 + (a.type === 'GENERAL' ? 8 : 0)));
       const card = playable[0];
       if (card.type === 'GENERAL') {
         const isGuard = (card.keywords || []).includes('GUARD');
@@ -84,18 +128,22 @@
           playTactic(G, aiIdx, card.uid);
           return true;
         } else if (t.type === 'enemy_general' && t.slots.length > 0) {
-          const best = t.slots.slice().sort((a, b) => getUnitAtk(opp.board[b]) - getUnitAtk(opp.board[a]))[0];
+          const best = t.slots.slice().sort((a, b) => getUnitAtk(opp.board[b], G) - getUnitAtk(opp.board[a], G))[0];
           playTactic(G, aiIdx, card.uid, best);
           return true;
         } else if (t.type === 'ally_general' && t.slots.length > 0) {
-          const best = t.slots.slice().sort((a, b) => getUnitAtk(ai.board[b]) - getUnitAtk(ai.board[a]))[0];
+          const best = t.slots.slice().sort((a, b) => getUnitAtk(ai.board[b], G) - getUnitAtk(ai.board[a], G))[0];
           playTactic(G, aiIdx, card.uid, best);
           return true;
         }
       }
     }
 
-    endTurn(G);
+    const ended = endTurn(G);
+    // If endTurn triggered over-limit DISCARD prompt for AI, keep stepping
+    if (!ended && G.pendingPrompt && G.pendingPrompt.owner === aiIdx) {
+      return true;
+    }
     return false;
   }
 
