@@ -135,7 +135,7 @@
           score += 2.2;
         }
       }
-      if (u.id === 'wu_zhoutai' && !G.zhoutaiBquUsed[ownerIdx]) score += 4.5;
+      if (u.id === 'wu_zhoutai' && (Number(G.zhoutaiBquUsed[ownerIdx]) || 0) < 2) score += 3.0 * (2 - (Number(G.zhoutaiBquUsed[ownerIdx]) || 0));
       if (u.id === 'wu_lingtong' && !G.lingtongSizhanUsed[ownerIdx]) score += 3.0;
       if (u.id === 'wu_luxun' || u.id === 'qun_diaochan') score += 3.2;
       if (u.id === 'qun_zhangren') score += 2.5;

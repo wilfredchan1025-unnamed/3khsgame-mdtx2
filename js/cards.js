@@ -43,7 +43,7 @@
     shu_wangping: {
       id: 'shu_wangping', name: '王平', type: 'GENERAL', faction: 'SHU', cost: 3, atk: 2, hp: 4, armor: 1,
       keywords: ['ARMOR', 'GUARD'], icon: '🏔️', skillName: '無當',
-      text: '【無當】受到攻擊力 ≤ 3 的武將攻擊時，傷害 -1。'
+      text: '【無當】受到攻擊力 ≤ 2 的武將攻擊時，傷害 -1。'
     },
     shu_huangzhong: {
       id: 'shu_huangzhong', name: '黃忠', type: 'GENERAL', faction: 'SHU', cost: 4, atk: 3, hp: 3, armor: 0,
@@ -77,10 +77,15 @@
       text: '【繼志】登場：若我方場上有諸葛亮，獲得 +2/+2 與護衛。【九伐】攻擊國力且敵方國力 ≤ 15 時，額外 +2 傷。'
     },
     shu_zhugeliang: {
-      id: 'shu_zhugeliang', name: '諸葛亮', type: 'GENERAL', faction: 'SHU', cost: 6, atk: 3, hp: 6, armor: 0,
-      keywords: [], icon: '🪶', skillName: '錦囊',
+      id: 'shu_zhugeliang', name: '諸葛亮', type: 'GENERAL', faction: 'SHU', cost: 6, atk: 2, hp: 6, armor: 1,
+      keywords: ['ARMOR'], icon: '🪶', skillName: '錦囊',
       activeSkill: { name: '錦囊', cost: 1, desc: '二選一：全友軍 +1 臨時護甲／抽 1 牌並存 1 糧倉' },
       text: '【錦囊】登場抽 2 張牌。主動(1糧，二選一)：全友軍 +1 臨時護甲（1大回合）／抽 1 牌並存 1 糧倉。'
+    },
+    shu_guagu: {
+      id: 'shu_guagu', name: '刮骨療毒', type: 'TACTIC', faction: 'SHU', cost: 1, target: 'ally_general', icon: '🩺',
+      text: '移除一名友方武將的負面減益（包含灼燒）；若無負面減益，則回復其 2 點生命。',
+      flavor: '「關羽刮骨療毒，飲酒食肉，談笑弈棋，神色自若。」'
     },
     shu_muniuliuma: {
       id: 'shu_muniuliuma', name: '木牛流馬', type: 'TACTIC', faction: 'SHU', cost: 2, target: 'none', icon: '🐂',
@@ -129,13 +134,13 @@
     wei_caoren: {
       id: 'wei_caoren', name: '曹仁', type: 'GENERAL', faction: 'WEI', cost: 3, atk: 2, hp: 4, armor: 2,
       keywords: ['ARMOR', 'GUARD'], icon: '🏰', skillName: '據守',
-      activeSkill: { name: '據守', cost: 1, desc: '自身 -1 攻，自己與相鄰友軍 +1 臨時護甲（1大回合）' },
-      text: '【據守】主動(1糧)：自身 -1 攻（最低 0），自己與相鄰友軍 +1 臨時護甲（本回合與下個敵方回合）。'
+      activeSkill: { name: '據守', cost: 1, desc: '自己與相鄰友軍 +1 臨時護甲（1大回合）' },
+      text: '【據守】主動(1糧)：自己與相鄰友軍 +1 臨時護甲（本回合與下個敵方回合）。'
     },
     wei_zhangliao: {
       id: 'wei_zhangliao', name: '張遼', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 3, hp: 4, armor: 0,
       keywords: [], icon: '⚡', skillName: '止啼・威震',
-      text: '【止啼】登場：指定一名敵方武將失去技能。【威震】敵方攻擊張遼時，攻擊力 -1（最低 0）。'
+      text: '【止啼】登場：指定一名敵方武將失去技能。【威震】敵方對張遼發動普通攻擊時，攻擊力 -1（最低 0）。'
     },
     wei_xiahoudun: {
       id: 'wei_xiahoudun', name: '夏侯惇', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 4, hp: 4, armor: 1,
@@ -155,7 +160,7 @@
     wei_zhanghe: {
       id: 'wei_zhanghe', name: '張郃', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 3, hp: 4, armor: 0,
       keywords: [], icon: '🎯', skillName: '料敵',
-      text: '【料敵】登場：查看敵方手牌並選擇其中 1 張；若為謀略牌，下回合費用 +1；若為武將牌，該武將下回合 -1/-1。'
+      text: '【料敵】登場：查看敵方最高費手牌，若為謀略牌則費用 +1（2大回合），若為武將牌則 -1/-1（2大回合）。'
     },
     wei_xunyou: {
       id: 'wei_xunyou', name: '荀攸', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 2, hp: 4, armor: 0,
@@ -178,14 +183,19 @@
       keywords: ['ARMOR'], icon: '👑', skillName: '奸雄',
       text: '【奸雄】登場（二選一）：全友軍本回合 +2 攻／抽 2 張牌並存入 1 點糧倉。'
     },
+    wei_wangmei: {
+      id: 'wei_wangmei', name: '望梅止渴', type: 'TACTIC', faction: 'WEI', cost: 1, target: 'ally_general', icon: '🍑',
+      text: '指定一名友方武將本回合獲得 +1 攻；若其帶有「突襲」，改為 +2 攻。',
+      flavor: '「前有大梅林，饒子，甘酸可以解渴。」'
+    },
     wei_xietianzi: {
       id: 'wei_xietianzi', name: '挾天子令諸侯', type: 'TACTIC', faction: 'WEI', cost: 2, target: 'none', icon: '👑',
-      text: '抽 2 張牌，己方國力 -1。',
+      text: '抽 1 張牌，使敵方最高攻武將攻擊力 -1（2大回合；若其攻擊力 ≥ 4 改為 -2 攻），己方國力 -1。',
       flavor: '「迎漢獻帝都許昌，奉天子以令不臣。」'
     },
     wei_duanliang: {
       id: 'wei_duanliang', name: '斷糧奇兵', type: 'TACTIC', faction: 'WEI', cost: 2, target: 'none', icon: '🔥',
-      text: '掠奪敵方最多 2 點糧倉轉為己方臨時糧草，並使敵方最高攻武將 -1 攻（2大回合）。',
+      text: '掠奪敵方最多 2 點糧倉轉為己方臨時糧草（若敵方無糧倉改為抽 1 張牌），並使敵方最高攻武將 -1 攻（2大回合）。',
       flavor: '「兵馬未動，糧草先行；斷其輜重，敵陣自潰。」'
     },
     wei_jianbi: {
@@ -195,12 +205,12 @@
     },
     wei_quhu: {
       id: 'wei_quhu', name: '驅虎吞狼', type: 'TACTIC', faction: 'WEI', cost: 3, target: 'enemy_general', icon: '🐯',
-      text: '指定一名敵方武將造成 3 點傷害，並使其攻擊力 -1（持續 2 大回合）。',
+      text: '指定一名敵方武將造成 3 點傷害，並使其攻擊力 -1（持續 2 大回合）；若擊殺目標，往己方糧倉存入 1 點糧草。',
       flavor: '「荀彧獻二虎競食、驅虎吞狼之計，令劉備呂布自相殘殺。」'
     },
     wei_guandu: {
-      id: 'wei_guandu', name: '奇襲烏巢', type: 'TACTIC', faction: 'WEI', cost: 4, target: 'none', icon: '🔥',
-      text: '敵方糧草上限 -1（最低 1），己方本回合獲得 +2 臨時糧草。',
+      id: 'wei_guandu', name: '奇襲烏巢', type: 'TACTIC', faction: 'WEI', cost: 3, target: 'none', icon: '🔥',
+      text: '敵方糧草上限 -1（最低 1），己方本回合獲得 +1 臨時糧草，並對敵方最高攻武將造成 2 點傷害。',
       flavor: '「官渡夜襲烏巢，盡焚袁軍萬車軍糧，一戰定北方。」'
     },
 
@@ -208,15 +218,15 @@
     // 吳 WU (12 Generals + 5 Tactics = 17 cards)
     // ==========================================
     wu_lingtong: {
-      id: 'wu_lingtong', name: '凌統', type: 'GENERAL', faction: 'WU', cost: 1, atk: 1, hp: 2, armor: 1,
-      keywords: ['ARMOR'], icon: '🌊', skillName: '死戰',
+      id: 'wu_lingtong', name: '凌統', type: 'GENERAL', faction: 'WU', cost: 1, atk: 1, hp: 2, armor: 0,
+      keywords: [], icon: '🌊', skillName: '死戰',
       text: '【死戰】首次受到致命傷害時，保留 1 點生命並獲得 +1 攻擊力（每場遊戲一次）。'
     },
     wu_huanggai: {
       id: 'wu_huanggai', name: '黃蓋', type: 'GENERAL', faction: 'WU', cost: 2, atk: 3, hp: 3, armor: 0,
       keywords: [], icon: '🔥', skillName: '苦肉',
-      activeSkill: { name: '苦肉', cost: 0, desc: '己方國力 -2，抽 1 牌並獲得 +1 臨時糧草' },
-      text: '【苦肉】主動(0糧)：己方國力 -2，抽 1 張牌並獲得 +1 臨時糧草。'
+      activeSkill: { name: '苦肉', cost: 0, maxUses: 2, desc: '己方國力 -2，抽 1 牌並獲得 +1 臨時糧草（每場限 2 次）' },
+      text: '【苦肉】主動(0糧，每場限 2 次)：己方國力 -2，抽 1 張牌並獲得 +1 臨時糧草。'
     },
     wu_ganning: {
       id: 'wu_ganning', name: '甘寧', type: 'GENERAL', faction: 'WU', cost: 3, atk: 3, hp: 2, armor: 0,
@@ -241,7 +251,7 @@
     wu_lumeng: {
       id: 'wu_lumeng', name: '呂蒙', type: 'GENERAL', faction: 'WU', cost: 4, atk: 3, hp: 4, armor: 1,
       keywords: ['ARMOR'], icon: '⛵', skillName: '攻心',
-      text: '【攻心】登場：指定一名敵方武將，其技能本回合無效，且攻擊力 -1（2大回合）。'
+      text: '【攻心】登場：指定一名敵方武將，其技能在之後 2 大回合無效，且攻擊力 -1（2大回合）。'
     },
     wu_sunce: {
       id: 'wu_sunce', name: '孫策', type: 'GENERAL', faction: 'WU', cost: 4, atk: 4, hp: 3, armor: 0,
@@ -251,7 +261,7 @@
     wu_zhouyu: {
       id: 'wu_zhouyu', name: '周瑜', type: 'GENERAL', faction: 'WU', cost: 5, atk: 3, hp: 5, armor: 0,
       keywords: [], icon: '🏮', skillName: '火攻',
-      text: '【火攻】登場：對敵全體造成 2 傷並施加灼燒（每回合扣 1 血，持續 2 回合）。'
+      text: '【火攻】登場：對敵全體造成 1 傷並施加灼燒（每回合扣 1 血，持續 2 回合）。'
     },
     wu_sunquan: {
       id: 'wu_sunquan', name: '孫權', type: 'GENERAL', faction: 'WU', cost: 5, atk: 3, hp: 5, armor: 1,
@@ -260,14 +270,19 @@
       text: '【制衡】主動：每回合限 1 次，選棄 X 張手牌並摸 X 張牌（X ≤ 3；X > 1 需耗 1 糧）。'
     },
     wu_zhoutai: {
-      id: 'wu_zhoutai', name: '周泰', type: 'GENERAL', faction: 'WU', cost: 5, atk: 3, hp: 8, armor: 0,
+      id: 'wu_zhoutai', name: '周泰', type: 'GENERAL', faction: 'WU', cost: 5, atk: 2, hp: 8, armor: 0,
       keywords: ['GUARD'], icon: '🛡️', skillName: '不屈',
-      text: '【不屈】周泰的生命值不會低於 1（每場遊戲觸發一次）。'
+      text: '【不屈】周泰的生命值不會低於 1（每場遊戲最多觸發 2 次）。'
     },
     wu_luxun: {
       id: 'wu_luxun', name: '陸遜', type: 'GENERAL', faction: 'WU', cost: 6, atk: 4, hp: 4, armor: 1,
       keywords: ['ARMOR'], icon: '🔥', skillName: '連營',
       text: '【連營】回合結束：對敵全體造成 1 傷；若目標已灼燒則額外再造 1 傷。'
+    },
+    wu_kurouji: {
+      id: 'wu_kurouji', name: '苦肉計', type: 'TACTIC', faction: 'WU', cost: 1, target: 'ally_general', icon: '🩸',
+      text: '指定一名友方武將受到 1 點傷害；若其存活，抽 1 張牌並獲得 +1 攻（本回合）。',
+      flavor: '「周瑜打黃蓋，一個願打，一個願挨。」'
     },
     wu_shensu: {
       id: 'wu_shensu', name: '兵貴神速', type: 'TACTIC', faction: 'WU', cost: 1, target: 'ally_general', icon: '💨',
@@ -347,15 +362,15 @@
     qun_yuanshu: {
       id: 'qun_yuanshu', name: '袁術', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 5, hp: 5, armor: 0,
       keywords: [], icon: '🏺', skillName: '稱帝・眾叛',
-      text: '【稱帝】登場：自身獲得 +3/+3 與護衛。【眾叛】每回合結束：己方國力 -2。'
+      text: '【稱帝】登場：隨機棄 1 張手牌，自身獲得 +2/+2 與護衛。【眾叛】每回合結束：己方國力 -2。'
     },
     qun_yuanshao: {
-      id: 'qun_yuanshao', name: '袁紹', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 4, hp: 5, armor: 1,
+      id: 'qun_yuanshao', name: '袁紹', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 3, hp: 5, armor: 1,
       keywords: ['ARMOR'], icon: '🚩', skillName: '亂擊',
       text: '【亂擊】登場：對敵全體造成 1 傷，友方全體 +1 攻（持續 2 大回合）。'
     },
     qun_dongzhuo: {
-      id: 'qun_dongzhuo', name: '董卓', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 5, hp: 6, armor: 2,
+      id: 'qun_dongzhuo', name: '董卓', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 5, hp: 6, armor: 1,
       keywords: ['ARMOR'], icon: '👹', skillName: '暴政',
       text: '【暴政】登場：己方國力 -2。'
     },
@@ -363,6 +378,11 @@
       id: 'qun_lubu', name: '呂布', type: 'GENERAL', faction: 'QUN', cost: 7, atk: 6, hp: 6, armor: 0,
       keywords: ['COMBO', 'PIERCE', 'KILL'], icon: '🔱', skillName: '無雙',
       text: '【無雙】破甲。斬殺：對敵方國力造成 2 點傷害。'
+    },
+    qun_ertao: {
+      id: 'qun_ertao', name: '二桃殺三士', type: 'TACTIC', faction: 'QUN', cost: 1, target: 'enemy_adjacent_pair', icon: '🍑',
+      text: '指定兩名相鄰的敵方武將，各 -1 攻（1大回合）；若兩者攻擊力相同，抽 1 張牌。',
+      flavor: '「二桃殺三士，誰為晏子謀。」'
     },
     qun_manli: {
       id: 'qun_manli', name: '鐵騎突襲', type: 'TACTIC', faction: 'QUN', cost: 2, target: 'enemy_general', icon: '🐎',
@@ -471,7 +491,7 @@
       'shu_taoyuan', 'shu_jushui',
       'shu_kongcheng', 'shu_beifa',
       'neu_bubing', 'neu_bubing',
-      'neu_tuntian', 'neu_shengdong',
+      'shu_guagu', 'neu_shengdong',
       'neu_pojia', 'neu_huanwei'
     ],
     WEI: [
@@ -487,7 +507,7 @@
       'wei_xietianzi', 'wei_xietianzi',
       'wei_duanliang', 'wei_jianbi',
       'wei_quhu', 'wei_quhu',
-      'wei_guandu', 'wei_jianbi',
+      'wei_guandu', 'wei_wangmei',
       'neu_huatuo', 'neu_tuntian',
       'neu_pojia', 'neu_huanwei'
     ],
@@ -504,7 +524,7 @@
       'wu_lianhuan', 'wu_lianhuan',
       'wu_dongfeng', 'wu_huogong',
       'wu_huogong', 'wu_jiangdong',
-      'neu_bubing', 'neu_tuntian',
+      'wu_kurouji', 'neu_tuntian',
       'neu_shengdong', 'neu_anfuminxin',
       'neu_pojia', 'neu_jianyu'
     ],
@@ -519,7 +539,7 @@
       'qun_yuanshu', 'qun_yuanshao',
       'qun_dongzhuo', 'qun_lubu',
       'qun_manli', 'qun_manli',
-      'qun_wushuang', 'qun_meirenji',
+      'qun_ertao', 'qun_meirenji',
       'qun_huoshao', 'qun_huoshao',
       'neu_bubing', 'neu_chengong',
       'neu_dunbing', 'neu_tuntian',
@@ -587,6 +607,63 @@
     }
   } catch (_) {}
 
+  const MAX_SAVED_DECK_SLOTS = 3;
+  const savedDeckSlots = [null, null, null];
+  try {
+    const rawSlots = global.localStorage && global.localStorage.getItem('sanguo_saved_decks_v32');
+    if (rawSlots) {
+      const parsed = JSON.parse(rawSlots);
+      if (Array.isArray(parsed)) {
+        for (let i = 0; i < MAX_SAVED_DECK_SLOTS; i++) {
+          const slot = parsed[i];
+          if (slot && FACTION_LIST.includes(slot.faction) && Array.isArray(slot.cards) && validateDeck(slot.faction, slot.cards, slot.subFaction || null).valid) {
+            savedDeckSlots[i] = {
+              name: String(slot.name || `自訂卡組 ${i + 1}`).slice(0, 20),
+              faction: slot.faction,
+              subFaction: slot.subFaction || null,
+              cards: slot.cards.slice()
+            };
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
+  function persistSavedDeckSlots() {
+    try {
+      if (global.localStorage) {
+        global.localStorage.setItem('sanguo_saved_decks_v32', JSON.stringify(savedDeckSlots));
+      }
+    } catch (_) {}
+  }
+
+  function saveDeckToSlot(slotIdx, name, faction, cards, subFaction = null) {
+    if (slotIdx < 0 || slotIdx >= MAX_SAVED_DECK_SLOTS) return false;
+    const check = validateDeck(faction, cards, subFaction);
+    if (!check.valid) return false;
+    savedDeckSlots[slotIdx] = {
+      name: String(name || `${FACTIONS[faction].name}自訂 ${slotIdx + 1}`).trim().slice(0, 20) || `自訂卡組 ${slotIdx + 1}`,
+      faction,
+      subFaction: check.subFaction,
+      cards: cards.slice()
+    };
+    customDecks[faction] = cards.slice();
+    persistSavedDeckSlots();
+    try {
+      if (global.localStorage) {
+        global.localStorage.setItem('sanguo_custom_decks_v3', JSON.stringify(customDecks));
+      }
+    } catch (_) {}
+    return true;
+  }
+
+  function deleteDeckSlot(slotIdx) {
+    if (slotIdx < 0 || slotIdx >= MAX_SAVED_DECK_SLOTS) return false;
+    savedDeckSlots[slotIdx] = null;
+    persistSavedDeckSlots();
+    return true;
+  }
+
   function getDeckForFaction(faction) {
     return (customDecks[faction] || STARTER_DECKS[faction]).slice();
   }
@@ -605,6 +682,10 @@
     CARD_DB,
     STARTER_DECKS,
     customDecks,
+    MAX_SAVED_DECK_SLOTS,
+    savedDeckSlots,
+    saveDeckToSlot,
+    deleteDeckSlot,
     validateDeck,
     getDeckForFaction,
     saveCustomDeck

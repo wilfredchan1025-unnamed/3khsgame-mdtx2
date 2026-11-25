@@ -222,7 +222,7 @@
       consecutiveNoActionEmptyDeckTurns: 0,
       actedThisTurn: false,
       firstGeneralPlayed: false,
-      zhoutaiBquUsed: [false, false],
+      zhoutaiBquUsed: [0, 0],
       lingtongSizhanUsed: [false, false],
       pendingPrompt: null,
       vfxEvents: [],
@@ -488,11 +488,7 @@
       drawCard(G, pIdx, '抽牌階段');
     }
 
-    if (pIdx === G.secondPlayer && p.turnsTaken === 1) {
-      const rm = createCardInstance('rapid_march');
-      addCardToHand(G, pIdx, rm);
-      addLog(G, `【後手補償】${p.name} 獲得專屬 0 費謀略牌【急行軍】！`);
-    }
+    // v3.2: 取消後手急行軍，保留後手多 1 張初始手牌 + 第 1 回合正常抽牌
 
     checkVictory(G);
   }
@@ -538,6 +534,18 @@
       }
       return { type: 'enemy_general', slots };
     }
+    if (card.target === 'enemy_adjacent_pair') {
+      const slots = [];
+      for (let s = 0; s < BOARD_SIZE - 1; s++) {
+        const left = G.players[enemyIdx].board[s];
+        const right = G.players[enemyIdx].board[s + 1];
+        if (!left || !right) continue;
+        if ((!isUnitSilenced(left) && left.keywords.includes('SHROUD')) ||
+            (!isUnitSilenced(right) && right.keywords.includes('SHROUD'))) continue;
+        slots.push(s); // 代表 (s, s+1) 這一對相鄰敵將
+      }
+      return { type: 'enemy_adjacent_pair', slots };
+    }
     if (card.target === 'ally_general') {
       const slots = [];
       for (let s = 0; s < BOARD_SIZE; s++) {
@@ -570,7 +578,9 @@
     const unit = G.players[targetOwner].board[targetSlot];
     if (!unit || baseDmg <= 0) return { actualHpLoss: 0, killed: false, totalDmg: 0, shieldBroken: false };
 
-    const ignoreArmor = Boolean(opts.ignoreArmor);
+    // v3.2: 只有普通攻擊傷害才能以護甲抵銷（謀略／技能／灼燒皆無視護甲）
+    const isNormalAttack = Boolean(opts.isNormalAttack);
+    const ignoreArmor = Boolean(opts.ignoreArmor) || !isNormalAttack;
     const totalDmg = baseDmg;
     const armorBefore = unit.armor;
     const blocked = ignoreArmor ? 0 : Math.min(unit.armor, totalDmg);
@@ -579,13 +589,14 @@
     const hpLoss = totalDmg - blocked;
     unit.hp -= hpLoss;
 
-    // 周泰【不屈】：生命值不會低於 1（每場遊戲一次）
-    if (unit.id === 'wu_zhoutai' && !isUnitSilenced(unit) && unit.hp <= 0 && !G.zhoutaiBquUsed[targetOwner]) {
-      G.zhoutaiBquUsed[targetOwner] = true;
+    // v3.2 周泰【不屈】：生命值不會低於 1（每場遊戲最多觸發 2 次）
+    const bquCount = Number(G.zhoutaiBquUsed[targetOwner]) || 0;
+    if (unit.id === 'wu_zhoutai' && !isUnitSilenced(unit) && unit.hp <= 0 && bquCount < 2) {
+      G.zhoutaiBquUsed[targetOwner] = bquCount + 1;
       unit.hp = 1;
-      pushSkillAnim(G, targetOwner, unit, '不屈', '以死相護，生命值鎖定於 1！', 'unyielding');
-      pushVfx(G, `unit-${targetOwner}-${targetSlot}`, '🔥不屈 1HP!', 'text-amber-300');
-      addLog(G, `🔥 觸發【周泰·不屈】！周泰免於陣亡，生命值鎖定為 1！`);
+      pushSkillAnim(G, targetOwner, unit, '不屈', `以死相護，生命值鎖定於 1！（${bquCount + 1}/2）`, 'unyielding');
+      pushVfx(G, `unit-${targetOwner}-${targetSlot}`, `🔥不屈 ${bquCount + 1}/2`, 'text-amber-300');
+      addLog(G, `🔥 觸發【周泰·不屈】（第 ${bquCount + 1}/2 次）！周泰免於陣亡，生命值鎖定為 1！`);
     }
 
     // v3.1 凌統【死戰】：首次受到致命傷害時，保留 1 點生命並獲得 +1 攻擊力（每場遊戲一次）
@@ -840,25 +851,35 @@
           };
         }
         break;
-      case 'wei_zhanghe':
-        // v3.1: 查看敵方手牌並自選 1 張，下回合謀略+1費／武將-1/-1
+      case 'wei_zhanghe': {
+        // v3.2: 查看敵方最高費手牌，謀略+1費(2大回合)／武將-1/-1(2大回合)
         if (enemy.hand.length > 0) {
-          G.pendingPrompt = {
-            kind: 'PICK_ENEMY_HAND',
-            owner: ownerIdx,
-            sourceName: unit.name,
-            sourceIcon: unit.icon,
-            skillName: '料敵',
-            desc: '查看敵方手牌並選擇其中 1 張：謀略牌下回合費用 +1，武將牌下回合 -1/-1。',
-            cards: enemy.hand.map(c => ({
-              uid: c.uid, id: c.id, name: c.name, type: c.type, faction: c.faction,
-              cost: c.cost, baseAtk: c.baseAtk, baseHp: c.baseHp, baseArmor: c.baseArmor,
-              icon: c.icon, text: c.text
-            })),
-            context: { type: 'ZHANGHE_DEBUFF', sourceSlot: slotIdx }
-          };
+          let maxIdx = 0;
+          for (let i = 1; i < enemy.hand.length; i++) {
+            if (enemy.hand[i].cost > enemy.hand[maxIdx].cost) maxIdx = i;
+          }
+          const targetCard = enemy.hand[maxIdx];
+          const expiresAfter = enemy.turnsTaken + 2;
+          if (targetCard.type === 'TACTIC') {
+            targetCard.cost += 1;
+            targetCard.tempCostMod = (targetCard.tempCostMod || 0) + 1;
+            targetCard.debuffExpiresAfterTurn = expiresAfter;
+            pushSkillAnim(G, ownerIdx, unit, '料敵', `洞悉敵最高費手牌【${targetCard.name}】，費用 +1（2大回合）！`, 'skill');
+            addLog(G, `🎯【張郃·料敵】查看敵方最高費手牌【${targetCard.name}】，使其費用 +1（2大回合）！`);
+          } else {
+            const atkDrop = Math.min(1, targetCard.baseAtk);
+            const hpDrop = targetCard.baseHp > 1 ? 1 : 0;
+            targetCard.baseAtk -= atkDrop;
+            targetCard.baseHp -= hpDrop;
+            targetCard.tempAtkDrop = (targetCard.tempAtkDrop || 0) + atkDrop;
+            targetCard.tempHpDrop = (targetCard.tempHpDrop || 0) + hpDrop;
+            targetCard.debuffExpiresAfterTurn = expiresAfter;
+            pushSkillAnim(G, ownerIdx, unit, '料敵', `洞悉敵最高費手牌【${targetCard.name}】，-1/-1（2大回合）！`, 'skill');
+            addLog(G, `🎯【張郃·料敵】查看敵方最高費手牌【${targetCard.name}】，使其 -1/-1（2大回合）！`);
+          }
         }
         break;
+      }
       case 'wei_xunyou':
         G.pendingPrompt = {
           kind: 'CHOICE',
@@ -965,16 +986,16 @@
             sourceName: unit.name,
             sourceIcon: unit.icon,
             skillName: '攻心',
-            desc: '請選擇一名敵方武將，使其技能本回合無效且攻擊力 -1（2大回合）：',
+            desc: '請選擇一名敵方武將，使其技能在之後 2 大回合無效且攻擊力 -1（2大回合）：',
             context: { type: 'LUMENG_GONGXIN', sourceSlot: slotIdx }
           };
         }
         break;
       case 'wu_zhouyu':
-        pushSkillAnim(G, ownerIdx, unit, '火攻', '烈焰焚陣！敵全體 2 傷並灼燒（2回合）！', 'burn');
+        pushSkillAnim(G, ownerIdx, unit, '火攻', '烈焰焚陣！敵全體 1 傷並灼燒（2回合）！', 'burn');
         for (let s = 0; s < BOARD_SIZE; s++) {
           if (enemy.board[s]) {
-            dealDamageToUnit(G, enemyIdx, s, 2, '【周瑜·火攻】');
+            dealDamageToUnit(G, enemyIdx, s, 1, '【周瑜·火攻】');
             if (enemy.board[s] && enemy.board[s].hp > 0) {
               applyEffect(G, enemyIdx, s, { type: 'burn', val: 1, turns: 2, label: '灼燒' });
             }
@@ -1021,9 +1042,10 @@
         break;
       }
       case 'qun_yuanshu':
-        // v3.1: 取消登場扣國力，改為眾叛每回合結束 -2 國力
-        pushSkillAnim(G, ownerIdx, unit, '稱帝', '登基稱帝，自身獲得 +3/+3 與護衛！', 'buff');
-        buffUnitStats(G, ownerIdx, slotIdx, 3, 3, '【袁術·稱帝】');
+        // v3.2: 登場隨機棄 1 張手牌，自身 +2/+2 與護衛
+        pushSkillAnim(G, ownerIdx, unit, '稱帝', '登基稱帝！棄 1 張手牌，自身獲得 +2/+2 與護衛！', 'buff');
+        discardRandomCard(G, ownerIdx, '【袁術·稱帝】');
+        buffUnitStats(G, ownerIdx, slotIdx, 2, 2, '【袁術·稱帝】');
         if (!unit.keywords.includes('GUARD')) unit.keywords.push('GUARD');
         break;
       case 'qun_yuanshao':
@@ -1136,9 +1158,8 @@
         applyEffect(G, pIdx, slotIdx, { type: 'armor_buff', val: 1, halfTurns: 2, label: '+1甲' });
         break;
       case 'wei_caoren':
-        // v3.1: 1糧，自身 -1 攻，自己與相鄰友軍 +1 臨時護甲（1大回合）
-        u.atk = Math.max(0, u.atk - 1);
-        pushSkillAnim(G, pIdx, u, '據守', '自身 -1 攻，自己與相鄰友軍 +1 臨時護甲（1大回合）！', 'shield');
+        // v3.2: 1糧，取消自降 1 攻，自己與相鄰友軍 +1 臨時護甲（1大回合）
+        pushSkillAnim(G, pIdx, u, '據守', '自己與相鄰友軍 +1 臨時護甲（1大回合）！', 'shield');
         for (let s = Math.max(0, slotIdx - 1); s <= Math.min(BOARD_SIZE - 1, slotIdx + 1); s++) {
           if (p.board[s]) {
             applyEffect(G, pIdx, s, { type: 'armor_buff', val: 1, halfTurns: 2, label: '+1甲' });
@@ -1290,12 +1311,12 @@
         pushSkillAnim(G, pIdx, srcUnit, prompt.skillName, `使【${eu.name}】失去所有技能！`, 'silence');
         silenceUnit(G, enemyIdx, slot, `【${srcUnit.name}·${prompt.skillName}】`);
       } else if (prompt.context.type === 'LUMENG_GONGXIN') {
-        // v3.1: 技能本回合無效 + 攻擊力 -1（2大回合）
-        pushSkillAnim(G, pIdx, srcUnit, '攻心', `使【${eu.name}】本回合技能無效，且攻擊力 -1（2大回合）！`, 'silence');
-        applyEffect(G, enemyIdx, slot, { type: 'temp_silence', val: 1, halfTurns: 1, label: '技能無效' });
+        // v3.2: 技能之後 2 大回合無效 + 攻擊力 -1（2大回合）
+        pushSkillAnim(G, pIdx, srcUnit, '攻心', `使【${eu.name}】2 大回合內技能無效且攻擊力 -1！`, 'silence');
+        applyEffect(G, enemyIdx, slot, { type: 'temp_silence', val: 1, halfTurns: 4, label: '技能無效' });
         applyEffect(G, enemyIdx, slot, { type: 'atk_buff', val: -1, halfTurns: 4, label: '-1攻' });
         pushVfx(G, `unit-${enemyIdx}-${slot}`, '🔇技無效 -1攻', 'text-indigo-300');
-        addLog(G, `⛵【呂蒙·攻心】使【${eu.name}】技能本回合無效，且攻擊力 -1（2大回合）！`);
+        addLog(G, `⛵【呂蒙·攻心】使【${eu.name}】技能 2 大回合無效且攻擊力 -1！`);
       } else if (prompt.context.type === 'SIMAYI_LANGGU') {
         // v3.1: 指定敵將 -1 攻且下回合無法用主動技（1大回合）
         pushSkillAnim(G, pIdx, srcUnit, '狼顧', `震懾【${eu.name}】！攻擊力 -1 且下回合無法使用主動技！`, 'skill');
@@ -1457,6 +1478,12 @@
     if (card.target === 'enemy_general') {
       const eu = targetSlot !== null ? enemy.board[targetSlot] : null;
       if (!eu || (!isUnitSilenced(eu) && eu.keywords.includes('SHROUD'))) return false;
+    } else if (card.target === 'enemy_adjacent_pair') {
+      const left = (targetSlot !== null && targetSlot >= 0 && targetSlot < BOARD_SIZE - 1) ? enemy.board[targetSlot] : null;
+      const right = left ? enemy.board[targetSlot + 1] : null;
+      if (!left || !right) return false;
+      if ((!isUnitSilenced(left) && left.keywords.includes('SHROUD')) ||
+          (!isUnitSilenced(right) && right.keywords.includes('SHROUD'))) return false;
     } else if (card.target === 'ally_general') {
       const au = targetSlot !== null ? p.board[targetSlot] : null;
       if (!au || (!isUnitSilenced(au) && au.keywords.includes('SHROUD'))) return false;
@@ -1489,6 +1516,22 @@
         p.tempFood += 1;
         pushVfx(G, `hero-${pIdx}`, '+1 臨時糧草', 'text-amber-300');
         break;
+      case 'shu_guagu': {
+        const au = p.board[targetSlot];
+        if (au) {
+          const isNeg = ef => ef.type === 'burn' || ef.type === 'poison' || ef.type === 'temp_silence' || ef.type === 'no_active' || (ef.type === 'atk_buff' && ef.val < 0);
+          const hadNeg = au.frozenNextTurn || au.effects.some(isNeg);
+          if (hadNeg) {
+            au.frozenNextTurn = false;
+            au.effects = au.effects.filter(ef => !isNeg(ef));
+            pushVfx(G, `unit-${pIdx}-${targetSlot}`, '🩺淨化減益', 'text-emerald-300');
+            addLog(G, `🩺【刮骨療毒】移除了【${au.name}】的所有負面減益！`);
+          } else {
+            healUnit(G, pIdx, targetSlot, 2, '【刮骨療毒】');
+          }
+        }
+        break;
+      }
       case 'shu_muniuliuma':
         addReserveFood(G, pIdx, 2, '【木牛流馬】');
         drawCard(G, pIdx, '木牛流馬');
@@ -1533,11 +1576,31 @@
         if (res.killed) drawCard(G, pIdx, '出師北伐擊殺獎勵');
         break;
       }
-      case 'wei_xietianzi':
+      case 'wei_wangmei': {
+        const au = p.board[targetSlot];
+        if (au) {
+          const hasRush = !isUnitSilenced(au) && au.keywords.includes('RUSH');
+          const bonus = hasRush ? 2 : 1;
+          applyEffect(G, pIdx, targetSlot, { type: 'atk_buff', val: bonus, halfTurns: 1, label: `+${bonus}攻` });
+          pushVfx(G, `unit-${pIdx}-${targetSlot}`, `+${bonus}攻`, 'text-amber-300');
+        }
+        break;
+      }
+      case 'wei_xietianzi': {
         dealDamageToHero(G, pIdx, 1, '【挾天子令諸侯】');
         drawCard(G, pIdx, '挾天子令諸侯');
-        drawCard(G, pIdx, '挾天子令諸侯');
+        let bestSlot = -1, bestAtk = -1;
+        for (let s = 0; s < BOARD_SIZE; s++) {
+          const eu = enemy.board[s];
+          if (eu && getUnitAtk(eu, G) > bestAtk) { bestAtk = getUnitAtk(eu, G); bestSlot = s; }
+        }
+        if (bestSlot !== -1) {
+          const drop = bestAtk >= 4 ? -2 : -1;
+          applyEffect(G, enemyIdx, bestSlot, { type: 'atk_buff', val: drop, halfTurns: 4, label: `${drop}攻` });
+          pushVfx(G, `unit-${enemyIdx}-${bestSlot}`, `${drop}攻`, 'text-indigo-300');
+        }
         break;
+      }
       case 'wei_duanliang': {
         const stolen = Math.min(2, enemy.reserveFood);
         if (stolen > 0) {
@@ -1545,6 +1608,8 @@
           p.tempFood += stolen;
           pushVfx(G, `hero-${pIdx}`, `+${stolen} 臨糧`, 'text-amber-300');
           addLog(G, `【斷糧奇兵】從 ${enemy.name} 糧倉掠奪了 ${stolen} 點糧草！`);
+        } else {
+          drawCard(G, pIdx, '斷糧奇兵');
         }
         let bestSlot = -1, bestAtk = -1;
         for (let s = 0; s < BOARD_SIZE; s++) {
@@ -1569,18 +1634,35 @@
         addLog(G, `🧱【堅壁清野】所有友軍獲得 +1 臨時護甲，並使 ${enemy.name} 下回合糧草收入 -1！`);
         break;
       case 'wei_quhu': {
-        dealDamageToUnit(G, enemyIdx, targetSlot, 3, '【驅虎吞狼】');
+        const res = dealDamageToUnit(G, enemyIdx, targetSlot, 3, '【驅虎吞狼】');
         const eu = enemy.board[targetSlot];
         if (eu && eu.hp > 0) applyEffect(G, enemyIdx, targetSlot, { type: 'atk_buff', val: -1, halfTurns: 4, label: '-1攻' });
+        if (res.killed) addReserveFood(G, pIdx, 1, '【驅虎吞狼擊殺】');
         break;
       }
-      case 'wei_guandu':
+      case 'wei_guandu': {
         enemy.maxFood = Math.max(1, enemy.maxFood - 1);
-        p.tempFood += 2;
+        p.tempFood += 1;
         pushVfx(G, `hero-${enemyIdx}`, '-1 糧草上限', 'text-rose-400');
-        pushVfx(G, `hero-${pIdx}`, '+2 臨時糧草', 'text-amber-300');
-        addLog(G, `🔥【奇襲烏巢】焚毀敵軍輜重！${enemy.name} 糧草上限 -1（目前 ${enemy.maxFood}），${p.name} 獲得 +2 臨時糧草！`);
+        pushVfx(G, `hero-${pIdx}`, '+1 臨時糧草', 'text-amber-300');
+        let bestSlot = -1, bestAtk = -1;
+        for (let s = 0; s < BOARD_SIZE; s++) {
+          const eu = enemy.board[s];
+          if (eu && getUnitAtk(eu, G) > bestAtk) { bestAtk = getUnitAtk(eu, G); bestSlot = s; }
+        }
+        if (bestSlot !== -1) dealDamageToUnit(G, enemyIdx, bestSlot, 2, '【奇襲烏巢】');
+        addLog(G, `🔥【奇襲烏巢】焚毀敵軍輜重！${enemy.name} 糧草上限 -1（目前 ${enemy.maxFood}），${p.name} 獲得 +1 臨時糧草！`);
         break;
+      }
+      case 'wu_kurouji': {
+        const res = dealDamageToUnit(G, pIdx, targetSlot, 1, '【苦肉計】');
+        const au = p.board[targetSlot];
+        if (!res.killed && au && au.hp > 0) {
+          drawCard(G, pIdx, '苦肉計');
+          applyEffect(G, pIdx, targetSlot, { type: 'atk_buff', val: 1, halfTurns: 1, label: '+1攻' });
+        }
+        break;
+      }
       case 'wu_shensu': {
         const au = p.board[targetSlot];
         if (au) {
@@ -1636,6 +1718,17 @@
           if (p.board[s]) applyEffect(G, pIdx, s, { type: 'atk_buff', val: 1, halfTurns: 4, label: '+1攻' });
         }
         break;
+      case 'qun_ertao': {
+        const left = enemy.board[targetSlot];
+        const right = enemy.board[targetSlot + 1];
+        if (left && right) {
+          const sameAtk = getUnitAtk(left, G) === getUnitAtk(right, G);
+          applyEffect(G, enemyIdx, targetSlot, { type: 'atk_buff', val: -1, halfTurns: 2, label: '-1攻' });
+          applyEffect(G, enemyIdx, targetSlot + 1, { type: 'atk_buff', val: -1, halfTurns: 2, label: '-1攻' });
+          if (sameAtk) drawCard(G, pIdx, '二桃殺三士');
+        }
+        break;
+      }
       case 'qun_manli':
         dealDamageToUnit(G, enemyIdx, targetSlot, 3, '【鐵騎突襲】');
         break;
@@ -1793,7 +1886,7 @@
         addLog(G, `⚡【張遼·威震】使【${attacker.name}】本次攻擊力 -1（變為 ${atkDmg}）！`);
       }
 
-      if (defender.id === 'shu_wangping' && !isUnitSilenced(defender) && atkDmg <= 3) {
+      if (defender.id === 'shu_wangping' && !isUnitSilenced(defender) && atkDmg <= 2) {
         atkDmg = Math.max(0, atkDmg - 1);
         pushSkillAnim(G, enemyIdx, defender, '無當', '無當飛軍堅守，抵消 1 點傷害！', 'shield');
       }
@@ -1821,9 +1914,9 @@
         return true;
       }
 
-      const atkRes = dealDamageToUnit(G, enemyIdx, targetSlot, atkDmg, `【${attacker.name}】攻擊`, { ignoreArmor: hasPierce });
+      const atkRes = dealDamageToUnit(G, enemyIdx, targetSlot, atkDmg, `【${attacker.name}】攻擊`, { isNormalAttack: true, ignoreArmor: hasPierce });
       const defRes = defDmg > 0
-        ? dealDamageToUnit(G, pIdx, attackerSlot, defDmg, `【${defender.name}】反擊`)
+        ? dealDamageToUnit(G, pIdx, attackerSlot, defDmg, `【${defender.name}】反擊`, { isNormalAttack: true })
         : { actualHpLoss: 0, killed: false, totalDmg: 0 };
 
       // v3.1 魏延【狂骨】：造成傷害後（含防守反擊）回復自身 1 點生命

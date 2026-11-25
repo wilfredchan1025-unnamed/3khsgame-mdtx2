@@ -3,7 +3,7 @@
 
   const {
     FACTIONS, FACTION_LIST, BOARD_SIZE, SLOT_NAMES, MAX_HAND_SIZE, MAX_FOOD_CAP, MAX_RESERVE_FOOD, MAX_SUB_FACTION_CARDS, SUB_FACTION_MAX_COST, DECK_SIZE, MAX_COPIES, getHandLimit,
-    CARD_DB, STARTER_DECKS, customDecks, validateDeck,
+    CARD_DB, STARTER_DECKS, customDecks, MAX_SAVED_DECK_SLOTS, savedDeckSlots, saveDeckToSlot, deleteDeckSlot, validateDeck,
     getDeckForFaction, saveCustomDeck, Sound,
     isUnitSilenced, getUnitAtk, getUnitMaxAttacks, unitHasGuard, unitHasSnipe, isProtectedByAdjacentGuard, canUnitAttack, canUseActiveSkill, createGameState,
     getTotalFood, performMulligan, getValidAttackTargets, canPlayCard,
@@ -27,9 +27,12 @@
     hotseatPrivacyFor: null,
     showLogDrawer: false,
     aiTimer: null,
+    selectedSavedSlot: null,
     dbFaction: 'SHU',
     dbSubFaction: null,
     dbCards: [],
+    dbSlotIdx: 0,
+    dbDeckName: '',
     compFaction: 'ALL',
     compType: 'ALL',
     guideTab: 'TUTORIAL',
@@ -547,11 +550,14 @@
     else if (UI.firstChoice === 'P1') first = 1;
 
     setAIDifficulty(UI.aiDifficulty);
+    const p0Slot = UI.selectedSavedSlot !== null ? savedDeckSlots[UI.selectedSavedSlot] : null;
+    const p0CustomDeck = (p0Slot && p0Slot.faction === UI.p0Faction) ? p0Slot.cards.slice() : getDeckForFaction(UI.p0Faction);
     UI.G = createGameState({
       mode: UI.lobbyMode,
       p0Faction: UI.p0Faction,
       p1Faction: UI.p1Faction,
       firstPlayer: first,
+      p0Deck: p0CustomDeck,
       aiDifficulty: UI.aiDifficulty
     });
     UI.screen = 'GAME';
@@ -604,7 +610,7 @@
           <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
             <div class="text-amber-300 font-bold text-sm mb-1">1️⃣ 起手與糧草節奏</div>
             <ul class="list-disc pl-4 space-y-1 text-xs text-slate-300 leading-relaxed">
-              <li>先手拿 3 張手牌（首回合不抽牌）；後手拿 4 張並多一張 0 費【急行軍】（+1 臨時糧草）。</li>
+              <li>先手拿 3 張手牌（首回合不抽牌）；後手拿 4 張且第 1 回合正常抽 1 張牌（已移除急行軍）。</li>
               <li>起手調度建議留下 <b>1～3 費武將</b>，確保前期能穩定鋪場。</li>
               <li>第 1～5 回合每回合糧草 +1，第 6 回合起每 2 回合 +1，<b>上限為 8 糧</b>。</li>
               <li>回合結束沒花完的普通糧草會自動存入「<b>糧倉</b>」（上限 3 點），之後可用來打謀略牌與開主動技。</li>
@@ -686,7 +692,7 @@
           <div class="px-5 py-3.5 border-b border-amber-500/25 flex items-center justify-between bg-[#1b2230]">
             <div class="flex items-center gap-2">
               <h2 class="font-serif-tc text-xl font-bold text-amber-300">🎓 基本遊戲教學與 FAQ</h2>
-              <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-200 border border-amber-400/30">v3.1</span>
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-200 border border-amber-400/30">v3.2</span>
             </div>
             <button type="button" data-close-modal="1" class="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800">✕</button>
           </div>
@@ -713,14 +719,14 @@
       <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" data-close-backdrop="1">
         <div class="bg-[#141923] gold-border rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
           <div class="px-5 py-4 border-b border-amber-500/25 flex items-center justify-between bg-[#1b2230]">
-            <h2 class="font-serif-tc text-xl font-bold text-amber-300">《三國·謀定天下》完整遊戲規則手冊（v3.1）</h2>
+            <h2 class="font-serif-tc text-xl font-bold text-amber-300">《三國·謀定天下》完整遊戲規則手冊（v3.2）</h2>
             <button type="button" data-close-modal="1" class="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800">✕</button>
           </div>
           <div class="p-5 overflow-y-auto space-y-4 text-sm text-slate-200 leading-relaxed">
             <section>
               <h3 class="font-bold text-amber-300 mb-1">一、遊戲概述與勝利條件</h3>
               <ul class="list-disc pl-5 space-y-1 text-slate-300">
-                <li>雙方初始國力各 <b>30 點</b>，構築卡池共 <b>82 張</b>，每副卡組 <b>30 張</b>（同名最多 2 張；1 主陣營 + 最多 1 副陣營上限 10 張且限 ≤4 費 + 中立）。</li>
+                <li>雙方初始國力各 <b>30 點</b>，構築卡池共 <b>86 張</b>，每副卡組 <b>30 張</b>（同名最多 2 張；1 主陣營 + 最多 1 副陣營上限 10 張且限 ≤4 費 + 中立）。</li>
                 <li>先手初始手牌 <b>3 張</b>，後手 <b>4 張</b>；開局前雙方皆可進行<b>起手調度（Mulligan）</b>。</li>
                 <li>率先將敵方國力降至 <b>0 或以下</b>者勝。</li>
                 <li><b>殘局提早判勝：</b>若一方牌庫歸零且場上與手牌均無武將，而另一方仍有武將（場上或手牌），直接判有武將方獲勝；若雙方均無武將，須待可用謀略牌耗盡後比較剩餘國力分勝負。</li>
@@ -737,7 +743,7 @@
             <section>
               <h3 class="font-bold text-amber-300 mb-1">三、糧草、糧倉與大回合制</h3>
               <ul class="list-disc pl-5 space-y-1 text-slate-300">
-                <li>第 1～5 回合每回合糧草上限 +1，第 6 回合起改為每 2 回合 +1（<b>封頂 8 點</b>）並充滿；後手第 1 回合獲得 0 費謀略【急行軍】。</li>
+                <li>第 1～5 回合每回合糧草上限 +1，第 6 回合起改為每 2 回合 +1（<b>封頂 8 點</b>）並充滿；<b>僅普通攻擊傷害可由護甲抵銷</b>（謀略、技能與灼燒皆無視護甲）。</li>
                 <li><b>大回合持續時間：</b>所有標示「1 大回合」的增益與減益涵蓋己方本回合與下一個敵方回合，於敵方回合結束時解除。</li>
                 <li><b>結束階段：</b>手牌若超過動態上限（21～30 國力上限 8 張、11～20 上限 6 張、1～10 上限 4 張）需先自選棄牌；未用完普通糧草存入「<b>糧倉</b>」（上限 3 點，供謀略與主動技使用）。</li>
               </ul>
@@ -922,7 +928,7 @@
         <div class="w-full max-w-4xl bg-[#131822]/95 gold-border rounded-2xl shadow-2xl overflow-hidden">
           <div class="relative px-6 py-7 sm:py-9 text-center border-b border-amber-500/25 bg-gradient-to-b from-[#1e2433] to-[#131822]">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium mb-3">
-              <span>完整規則 v3.1</span>
+              <span>完整規則 v3.2</span>
               <span>•</span>
               <span>1v1 策略卡牌對戰</span>
             </div>
@@ -937,7 +943,7 @@
               <span class="text-blue-300 font-bold">魏</span>
               <span class="text-emerald-300 font-bold">吳</span>
               <span class="text-purple-300 font-bold">群</span>
-              <span class="text-slate-400">• 82張卡池 • 8糧上限 • 四段AI難度</span>
+              <span class="text-slate-400">• 86張卡池 • 8糧上限 • 3組自訂卡組</span>
             </div>
           </div>
 
@@ -984,8 +990,22 @@
               <div>
                 <div class="flex items-center justify-between mb-2">
                   <span class="text-sm font-bold text-amber-200">${UI.lobbyMode === 'HOTSEAT' ? '玩家一主陣營' : '我方出戰陣營'}</span>
+                  ${UI.selectedSavedSlot !== null && savedDeckSlots[UI.selectedSavedSlot] ? `<span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">已套用：${savedDeckSlots[UI.selectedSavedSlot].name}</span>` : ''}
                 </div>
                 <div class="grid grid-cols-2 gap-2.5">${renderFactionCards(UI.p0Faction, 'p0')}</div>
+                <div class="mt-3 p-2.5 rounded-xl bg-slate-900/75 border border-slate-800 space-y-1.5">
+                  <div class="text-[11px] font-semibold text-amber-300/90">💾 我的已儲存卡組（最多 3 組）</div>
+                  <div class="grid grid-cols-3 gap-1.5">
+                    ${savedDeckSlots.map((slot, idx) => {
+                      const active = UI.selectedSavedSlot === idx && slot;
+                      if (!slot) {
+                        return `<button type="button" data-action="open-deckbuilder-slot" data-slot-idx="${idx}" class="p-2 rounded-lg border border-dashed border-slate-700 bg-slate-950/50 hover:border-amber-400/50 text-left transition"><div class="text-[10px] text-slate-500">槽位 ${idx + 1}</div><div class="text-[11px] text-slate-400 mt-0.5">+ 前往組牌</div></button>`;
+                      }
+                      const sf = FACTIONS[slot.faction];
+                      return `<button type="button" data-lobby-select-slot="${idx}" class="p-2 rounded-lg border text-left transition ${active ? 'bg-emerald-950/70 border-emerald-400 ring-1 ring-emerald-400/40' : 'bg-slate-950/80 border-slate-700 hover:border-amber-400/60'}"><div class="flex items-center justify-between gap-1"><span class="text-[10px] px-1 rounded border ${sf.badgeBg}">${sf.name}</span><span class="text-[10px] text-slate-400">槽${idx + 1}</span></div><div class="text-[11px] font-bold text-amber-100 truncate mt-1">${slot.name}</div></button>`;
+                    }).join('')}
+                  </div>
+                </div>
               </div>
               ${UI.lobbyMode === 'ONLINE' ? `
                 <div class="flex flex-col justify-between p-4 rounded-xl bg-slate-900/80 border border-emerald-500/35 space-y-4">
@@ -1066,10 +1086,18 @@
         return rank(a.faction) - rank(b.faction) || a.cost - b.cost;
       });
 
+    // 右側卡組概括清單（依費用排序，只顯示費用、名稱、國家與張數）
+    const deckSummaryItems = Object.entries(counts)
+      .map(([id, cnt]) => ({ card: CARD_DB[id], cnt }))
+      .filter(x => x.card)
+      .sort((a, b) => a.card.cost - b.card.cost || a.card.name.localeCompare(b.card.name, 'zh-Hant'));
+    const curSlotObj = savedDeckSlots[UI.dbSlotIdx];
+    const displayDeckName = UI.dbDeckName || (curSlotObj ? curSlotObj.name : `${FACTIONS[fid].name}自訂 ${UI.dbSlotIdx + 1}`);
+
     return `
-      <div class="flex-1 flex flex-col p-4 max-w-6xl w-full mx-auto gap-4">
+      <div class="flex-1 flex flex-col p-4 max-w-7xl w-full mx-auto gap-4">
         <div class="flex flex-wrap items-center justify-between gap-3 bg-[#151a25] gold-border rounded-xl px-4 py-3">
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 flex-wrap">
             <button type="button" data-action="back-lobby" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm text-slate-200">← 返回大廳</button>
             <h2 class="font-serif-tc text-xl font-bold text-amber-300">組牌工坊</h2>
             <div class="flex gap-1.5">
@@ -1078,10 +1106,10 @@
               `).join('')}
             </div>
           </div>
-          <div class="flex items-center gap-2.5">
+          <div class="flex items-center gap-2.5 flex-wrap">
             <span class="text-sm font-bold ${UI.dbCards.length === DECK_SIZE ? 'text-emerald-400' : 'text-amber-300'}">牌庫數量：${UI.dbCards.length} / ${DECK_SIZE}</span>
             <button type="button" data-action="db-reset" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-600">重置為預組</button>
-            <button type="button" data-action="db-save" class="px-4 py-1.5 rounded-lg text-sm font-bold ${validation.valid ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950' : 'bg-slate-700 text-slate-400 cursor-not-allowed'}" ${validation.valid ? '' : 'disabled'}>💾 儲存卡組</button>
+            <button type="button" data-action="db-clear" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/60 text-xs text-slate-200 border border-slate-600">清空</button>
           </div>
         </div>
 
@@ -1096,37 +1124,100 @@
           <span class="font-bold ${validation.subCount > MAX_SUB_FACTION_CARDS ? 'text-rose-400' : 'text-indigo-300'}">副陣營已選：${validation.subCount} / ${MAX_SUB_FACTION_CARDS}</span>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-6">
-          ${pool.map(c => {
-            const cnt = counts[c.id] || 0;
-            const f = FACTIONS[c.faction];
-            return `
-              <div class="p-3 rounded-xl bg-[#151b26] border ${cnt > 0 ? 'border-amber-500/50' : 'border-slate-800'} flex flex-col justify-between gap-2">
-                <div>
-                  <div class="flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 min-w-0">
-                      <span class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-sm shrink-0">${c.icon}</span>
-                      <span class="font-bold text-slate-100 truncate">${c.name}</span>
-                      <span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span>
+        <div class="flex flex-col lg:flex-row gap-4 items-start pb-6">
+          <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 w-full">
+            ${pool.map(c => {
+              const cnt = counts[c.id] || 0;
+              const f = FACTIONS[c.faction];
+              return `
+                <div class="p-3 rounded-xl bg-[#151b26] border ${cnt > 0 ? 'border-amber-500/50' : 'border-slate-800'} flex flex-col justify-between gap-2">
+                  <div>
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-sm shrink-0">${c.icon}</span>
+                        <span class="font-bold text-slate-100 truncate">${c.name}</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span>
+                      </div>
+                      <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold shrink-0">${c.cost} 糧</span>
                     </div>
-                    <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold shrink-0">${c.cost} 糧</span>
+                    <div class="flex items-center gap-2 mt-1.5 text-xs">
+                      <span class="text-slate-400">${c.type === 'GENERAL' ? `⚔️${c.atk} ❤️${c.hp}${c.armor ? ` 🛡️${c.armor}` : ''}` : '📜 謀略牌'}</span>
+                      <div class="flex gap-1">${(c.keywords || []).map(keywordBadgeHtml).join('')}</div>
+                    </div>
+                    <p class="text-xs text-slate-300 mt-1.5 leading-snug">${c.text}</p>
                   </div>
-                  <div class="flex items-center gap-2 mt-1.5 text-xs">
-                    <span class="text-slate-400">${c.type === 'GENERAL' ? `⚔️${c.atk} ❤️${c.hp}${c.armor ? ` 🛡️${c.armor}` : ''}` : '📜 謀略牌'}</span>
-                    <div class="flex gap-1">${(c.keywords || []).map(keywordBadgeHtml).join('')}</div>
+                  <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                    <span class="text-xs font-semibold ${cnt === MAX_COPIES ? 'text-amber-300' : 'text-slate-400'}">已攜帶：${cnt} / ${MAX_COPIES}</span>
+                    <div class="flex items-center gap-1.5">
+                      <button type="button" data-db-remove="${c.id}" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-rose-900/70 text-slate-200 font-bold disabled:opacity-30" ${cnt === 0 ? 'disabled' : ''}>−</button>
+                      <button type="button" data-db-add="${c.id}" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-emerald-800/80 text-slate-200 font-bold disabled:opacity-30" ${cnt >= MAX_COPIES || UI.dbCards.length >= DECK_SIZE ? 'disabled' : ''}>+</button>
+                    </div>
                   </div>
-                  <p class="text-xs text-slate-300 mt-1.5 leading-snug">${c.text}</p>
                 </div>
-                <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                  <span class="text-xs font-semibold ${cnt === MAX_COPIES ? 'text-amber-300' : 'text-slate-400'}">已攜帶：${cnt} / ${MAX_COPIES}</span>
-                  <div class="flex items-center gap-1.5">
-                    <button type="button" data-db-remove="${c.id}" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-rose-900/70 text-slate-200 font-bold disabled:opacity-30" ${cnt === 0 ? 'disabled' : ''}>−</button>
-                    <button type="button" data-db-add="${c.id}" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-emerald-800/80 text-slate-200 font-bold disabled:opacity-30" ${cnt >= MAX_COPIES || UI.dbCards.length >= DECK_SIZE ? 'disabled' : ''}>+</button>
-                  </div>
-                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <aside class="w-full lg:w-80 shrink-0 lg:sticky lg:top-4 space-y-3">
+            <div class="bg-[#141a26] gold-border rounded-xl p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <h3 class="font-serif-tc text-sm font-bold text-amber-300">💾 已儲存卡組（3 槽位）</h3>
+                <span class="text-[10px] text-slate-400">點擊切換／載入</span>
               </div>
-            `;
-          }).join('')}
+              <div class="space-y-1.5">
+                ${savedDeckSlots.map((slot, idx) => {
+                  const isSelected = UI.dbSlotIdx === idx;
+                  const sf = slot ? FACTIONS[slot.faction] : null;
+                  return `
+                    <div class="p-2 rounded-lg border transition flex items-center justify-between gap-2 ${isSelected ? 'bg-indigo-950/60 border-indigo-400' : 'bg-slate-900/80 border-slate-700/80'}">
+                      <button type="button" data-db-select-slot="${idx}" class="flex-1 text-left min-w-0">
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">槽 ${idx + 1}</span>
+                          ${slot ? `<span class="text-[10px] px-1.5 py-0.5 rounded border ${sf.badgeBg}">${sf.name}${slot.subFaction ? '+' + FACTIONS[slot.subFaction].name : ''}</span>` : ''}
+                          <span class="text-xs font-bold text-amber-100 truncate">${slot ? slot.name : '空槽位'}</span>
+                        </div>
+                      </button>
+                      ${slot ? `<button type="button" data-db-delete-slot="${idx}" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-rose-900/80 text-slate-400 hover:text-rose-200" title="刪除槽位">✕</button>` : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+              <div class="pt-2 border-t border-slate-800 space-y-2">
+                <input id="db-deck-name-input" type="text" maxlength="20" placeholder="輸入卡組名稱（如：蜀漢快攻）" value="${displayDeckName}"
+                  class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-amber-100 focus:outline-none focus:border-amber-400" />
+                <button type="button" data-action="db-save-slot" class="w-full py-2 rounded-lg text-xs font-extrabold transition ${validation.valid ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950' : 'bg-slate-700 text-slate-400 cursor-not-allowed'}" ${validation.valid ? '' : 'disabled'}>
+                  💾 儲存至槽位 ${UI.dbSlotIdx + 1}（${UI.dbCards.length}/${DECK_SIZE}）
+                </button>
+              </div>
+            </div>
+
+            <div class="bg-[#141a26] border border-slate-700/80 rounded-xl p-3.5 flex flex-col max-h-[58vh]">
+              <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                <h3 class="font-serif-tc text-sm font-bold text-amber-200">📋 目前卡組概括</h3>
+                <span class="text-xs font-bold ${UI.dbCards.length === DECK_SIZE ? 'text-emerald-400' : 'text-amber-300'}">${UI.dbCards.length} / ${DECK_SIZE}</span>
+              </div>
+              <div class="overflow-y-auto mt-2 space-y-1 pr-1 flex-1">
+                ${deckSummaryItems.length === 0
+                  ? `<div class="text-xs text-slate-500 text-center py-6">尚未加入任何卡牌</div>`
+                  : deckSummaryItems.map(({ card, cnt }) => {
+                      const f = FACTIONS[card.faction] || FACTIONS.NEU;
+                      return `
+                        <button type="button" data-db-remove="${card.id}" title="點擊移出 1 張"
+                          class="w-full px-2 py-1.5 rounded-lg bg-slate-900/90 hover:bg-rose-950/60 border border-slate-800 hover:border-rose-500/40 flex items-center justify-between gap-2 text-xs transition">
+                          <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="w-5 h-5 rounded-full bg-amber-400 text-slate-950 text-[11px] font-black flex items-center justify-center shrink-0">${card.cost}</span>
+                            <span class="text-slate-100 font-semibold truncate">${card.name}</span>
+                          </div>
+                          <div class="flex items-center gap-1.5 shrink-0">
+                            <span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span>
+                            ${cnt > 1 ? `<span class="text-[11px] font-extrabold text-amber-300">×${cnt}</span>` : ''}
+                          </div>
+                        </button>
+                      `;
+                    }).join('')}
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     `;
@@ -1151,6 +1242,10 @@
         const card = G.players[viewIdx].hand.find(c => c.uid === UI.selectedHandUid);
         if (card && card.type === 'TACTIC') {
           if (card.target === 'enemy_general' && isOpponentSide) isValidTarget = true;
+          if (card.target === 'enemy_adjacent_pair' && isOpponentSide) {
+            const ob = G.players[ownerIdx].board;
+            if ((slotIdx > 0 && ob[slotIdx - 1]) || (slotIdx < BOARD_SIZE - 1 && ob[slotIdx + 1])) isValidTarget = true;
+          }
           if (card.target === 'ally_general' && !isOpponentSide) isValidTarget = true;
         }
       }
@@ -1383,7 +1478,7 @@
               <div class="mt-2 pt-1.5 border-t border-slate-700/70 flex items-center justify-between text-xs font-extrabold">
                 ${c.type === 'GENERAL'
                   ? `<span class="text-amber-300">⚔️${c.baseAtk}</span><span class="text-sky-300">${c.baseArmor ? `🛡️${c.baseArmor}` : ''}</span><span class="text-emerald-300">❤️${c.baseHp}</span>`
-                  : `<span class="text-amber-200/90 text-[11px] font-semibold">${c.target === 'none' ? '點擊施放' : c.target === 'enemy_general' ? '指定敵將' : '指定友將'}</span>`}
+                  : `<span class="text-amber-200/90 text-[11px] font-semibold">${c.target === 'none' ? '點擊施放' : c.target === 'enemy_general' ? '指定敵將' : c.target === 'enemy_adjacent_pair' ? '指定相鄰敵將' : '指定友將'}</span>`}
               </div>
             </button>
           `;
@@ -1712,6 +1807,7 @@
       if (card) {
         if (card.type === 'GENERAL') return `已選武將【${card.name}】— 請點擊己方空置的上陣位部署（點擊取消可撤回）`;
         if (card.target === 'enemy_general') return `已選謀略【${card.name}】— 請點擊任意敵方存活武將（無視護衛保護）`;
+        if (card.target === 'enemy_adjacent_pair') return `已選謀略【${card.name}】— 請點擊一對相鄰敵方武將中的任一位`;
         if (card.target === 'ally_general') return `已選謀略【${card.name}】— 請點擊一名友方存活武將`;
         return `已選謀略【${card.name}】— 再次點擊此牌或按「確認施放」立即生效`;
       }
@@ -1748,7 +1844,7 @@
             ${G.mode === 'AI' ? `<span class="px-2 py-0.5 rounded bg-indigo-950/90 text-indigo-200 border border-indigo-500/40 text-xs font-bold">🧠 ${diffCfg.name}</span>` : ''}
             ${G.mode === 'ONLINE' ? `<span class="px-2 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 text-xs font-bold">🌐 房號 ${UI.onlineRoomCode}（${UI.onlineRole === 'HOST' ? '房主' : '客軍'}）</span>` : ''}
             <span class="hidden md:inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
-              v3.1 • 糧草上限 ${MAX_FOOD_CAP} + 糧倉 ${MAX_RESERVE_FOOD}
+              v3.2 • 糧草上限 ${MAX_FOOD_CAP} + 糧倉 ${MAX_RESERVE_FOOD}
             </span>
           </div>
           <div class="flex items-center gap-1.5 sm:gap-2">
@@ -1932,11 +2028,58 @@
       return;
     }
 
+    const lobbySlotBtn = e.target.closest('[data-lobby-select-slot]');
+    if (lobbySlotBtn) {
+      const idx = Number(lobbySlotBtn.getAttribute('data-lobby-select-slot'));
+      const slot = savedDeckSlots[idx];
+      if (slot) {
+        if (UI.selectedSavedSlot === idx) {
+          UI.selectedSavedSlot = null;
+        } else {
+          UI.selectedSavedSlot = idx;
+          UI.p0Faction = slot.faction;
+        }
+        render();
+      }
+      return;
+    }
+
+    const dbSelectSlot = e.target.closest('[data-db-select-slot]');
+    if (dbSelectSlot) {
+      const idx = Number(dbSelectSlot.getAttribute('data-db-select-slot'));
+      UI.dbSlotIdx = idx;
+      const slot = savedDeckSlots[idx];
+      if (slot) {
+        UI.dbFaction = slot.faction;
+        UI.dbSubFaction = slot.subFaction || null;
+        UI.dbCards = slot.cards.slice();
+        UI.dbDeckName = slot.name;
+      } else {
+        UI.dbDeckName = `${FACTIONS[UI.dbFaction].name}自訂 ${idx + 1}`;
+      }
+      render();
+      return;
+    }
+
+    const dbDelSlot = e.target.closest('[data-db-delete-slot]');
+    if (dbDelSlot) {
+      const idx = Number(dbDelSlot.getAttribute('data-db-delete-slot'));
+      deleteDeckSlot(idx);
+      if (UI.selectedSavedSlot === idx) UI.selectedSavedSlot = null;
+      showToast(`已刪除槽位 ${idx + 1} 的儲存卡組`);
+      render();
+      return;
+    }
+
     const facBtn = e.target.closest('[data-pick-faction]');
     if (facBtn) {
       const [who, fid] = facBtn.getAttribute('data-pick-faction').split(':');
-      if (who === 'p0') UI.p0Faction = fid;
-      else UI.p1Faction = fid;
+      if (who === 'p0') {
+        UI.p0Faction = fid;
+        if (UI.selectedSavedSlot !== null && savedDeckSlots[UI.selectedSavedSlot] && savedDeckSlots[UI.selectedSavedSlot].faction !== fid) {
+          UI.selectedSavedSlot = null;
+        }
+      } else UI.p1Faction = fid;
       render();
       return;
     }
@@ -2011,6 +2154,17 @@
         render();
         return;
       }
+      if (action === 'open-deckbuilder-slot') {
+        const idx = Number(actBtn.getAttribute('data-slot-idx')) || 0;
+        UI.dbSlotIdx = idx;
+        UI.dbFaction = UI.p0Faction;
+        UI.dbCards = getDeckForFaction(UI.dbFaction);
+        UI.dbSubFaction = validateDeck(UI.dbFaction, UI.dbCards).subFaction;
+        UI.dbDeckName = `${FACTIONS[UI.dbFaction].name}自訂 ${idx + 1}`;
+        UI.screen = 'DECKBUILDER';
+        render();
+        return;
+      }
       if (action === 'db-reset') {
         UI.dbCards = STARTER_DECKS[UI.dbFaction].slice();
         UI.dbSubFaction = null;
@@ -2018,14 +2172,25 @@
         render();
         return;
       }
-      if (action === 'db-save') {
+      if (action === 'db-clear') {
+        UI.dbCards = [];
+        showToast('已清空目前編輯中的卡組');
+        render();
+        return;
+      }
+      if (action === 'db-save-slot' || action === 'db-save') {
         const check = validateDeck(UI.dbFaction, UI.dbCards, UI.dbSubFaction);
         if (!check.valid) {
           showToast(check.errors[0], 'error');
           return;
         }
-        saveCustomDeck(UI.dbFaction, UI.dbCards);
-        showToast(`已儲存【${FACTIONS[UI.dbFaction].title}】自訂 30 張卡組！`, 'success');
+        const nameInp = document.getElementById('db-deck-name-input');
+        const deckName = (nameInp && nameInp.value.trim()) || `${FACTIONS[UI.dbFaction].name}自訂 ${UI.dbSlotIdx + 1}`;
+        UI.dbDeckName = deckName;
+        saveDeckToSlot(UI.dbSlotIdx, deckName, UI.dbFaction, UI.dbCards, UI.dbSubFaction);
+        UI.selectedSavedSlot = UI.dbSlotIdx;
+        UI.p0Faction = UI.dbFaction;
+        showToast(`已儲存【${deckName}】至槽位 ${UI.dbSlotIdx + 1} 並設為出戰卡組！`, 'success');
         render();
         return;
       }
@@ -2240,13 +2405,21 @@
       if (UI.selectedHandUid !== null) {
         const card = G.players[viewIdx].hand.find(c => c.uid === UI.selectedHandUid);
         if (card && card.type === 'TACTIC') {
+          let resolvedTarget = null;
           if ((card.target === 'enemy_general' && owner !== viewIdx) || (card.target === 'ally_general' && owner === viewIdx)) {
+            resolvedTarget = slot;
+          } else if (card.target === 'enemy_adjacent_pair' && owner !== viewIdx) {
+            const eb = G.players[owner].board;
+            if (slot < BOARD_SIZE - 1 && eb[slot] && eb[slot + 1]) resolvedTarget = slot;
+            else if (slot > 0 && eb[slot - 1] && eb[slot]) resolvedTarget = slot - 1;
+          }
+          if (resolvedTarget !== null) {
             if (G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
               UI.selectedHandUid = null;
-              sendGuestAction('PLAY_TACTIC', { cardUid: card.uid, targetSlot: slot });
+              sendGuestAction('PLAY_TACTIC', { cardUid: card.uid, targetSlot: resolvedTarget });
               return;
             }
-            if (playTactic(G, viewIdx, card.uid, slot)) {
+            if (playTactic(G, viewIdx, card.uid, resolvedTarget)) {
               UI.selectedHandUid = null;
               syncOnlineStateAndRender();
               return;
