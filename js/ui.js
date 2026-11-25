@@ -3,17 +3,19 @@
 
   const {
     FACTIONS, FACTION_LIST, BOARD_SIZE, SLOT_NAMES, MAX_HAND_SIZE, MAX_FOOD_CAP, MAX_RESERVE_FOOD, MAX_SUB_FACTION_CARDS, SUB_FACTION_MAX_COST, DECK_SIZE, MAX_COPIES, getHandLimit,
-    isCountering, CARD_DB, STARTER_DECKS, customDecks, validateDeck,
+    CARD_DB, STARTER_DECKS, customDecks, validateDeck,
     getDeckForFaction, saveCustomDeck, Sound,
-    isWanshaActive, getUnitAtk, getUnitMaxAttacks, unitHasGuard, isProtectedByAdjacentGuard, canUnitAttack, canUseActiveSkill, createGameState,
+    isUnitSilenced, getUnitAtk, getUnitMaxAttacks, unitHasGuard, unitHasSnipe, isProtectedByAdjacentGuard, canUnitAttack, canUseActiveSkill, createGameState,
     getTotalFood, performMulligan, getValidAttackTargets, canPlayCard,
     playGeneral, playTactic, activateUnitSkill, resolvePendingPrompt, executeAttack, endTurn,
+    AI_DIFFICULTIES, setAIDifficulty, getAIDifficulty,
     aiChooseMulligan, runAIStep
   } = global.Sanguo;
 
   const UI = {
     screen: 'LOBBY',
     lobbyMode: 'AI',
+    aiDifficulty: 'normal',
     p0Faction: 'SHU',
     p1Faction: 'WEI',
     firstChoice: 'RANDOM',
@@ -30,6 +32,7 @@
     dbCards: [],
     compFaction: 'ALL',
     compType: 'ALL',
+    guideTab: 'TUTORIAL',
     onlineRole: null,
     onlineRoomCode: '',
     onlineInputCode: '',
@@ -60,7 +63,6 @@
     }, 2200);
   }
 
-
   function ensureFxStyles() {
     if (document.getElementById('sanguo-v21-fx')) return;
     const style = document.createElement('style');
@@ -82,12 +84,6 @@
         42% { transform: translateX(8px) rotate(1.5deg); }
         68% { transform: translateX(-5px); }
         85% { transform: translateX(4px); }
-      }
-      @keyframes sgCounterHit {
-        0%, 100% { transform: translateX(0); }
-        20% { transform: translateX(-9px) scale(1.03); box-shadow: 0 0 28px rgba(251,191,36,0.95); }
-        50% { transform: translateX(9px); }
-        75% { transform: translateX(-4px); }
       }
       @keyframes sgDeathBurst {
         0% { opacity: 0.96; transform: scale(1); filter: saturate(1); }
@@ -114,7 +110,6 @@
       .anim-lunge-up { animation: sgLungeUp 0.44s cubic-bezier(0.22, 1, 0.36, 1); z-index: 20; }
       .anim-lunge-down { animation: sgLungeDown 0.44s cubic-bezier(0.22, 1, 0.36, 1); z-index: 20; }
       .anim-hit-shake { animation: sgHitShake 0.44s ease-out; }
-      .anim-counter-hit { animation: sgCounterHit 0.48s ease-out; }
       .anim-death-ghost { animation: sgDeathBurst 0.62s ease-out forwards; pointer-events: none; }
       .anim-kill-pulse { animation: sgKillPulse 0.65s ease-out; }
       .anim-tactic-target { animation: sgTacticTargetFlash 0.7s ease-out; }
@@ -170,7 +165,6 @@
         pointer-events: none;
         animation: sgSkillPop 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
       }
-
       .tactic-showcase-card {
         position: fixed;
         top: 48%;
@@ -222,8 +216,6 @@
     root.appendChild(el);
     setTimeout(() => { if (el.parentNode) el.remove(); }, 1500);
   }
-
-
 
   function showSkillShowcase(evt) {
     ensureFxStyles();
@@ -302,7 +294,6 @@
 
   function maskStateForGuest(G) {
     const clone = JSON.parse(JSON.stringify(G));
-    // Hide Host (player 0) hand & both decks from Guest
     clone.players[0].hand = clone.players[0].hand.map((_, i) => ({ uid: -1000 - i, hidden: true }));
     clone.players[0].deck = new Array(clone.players[0].deck.length).fill(null);
     clone.players[1].deck = new Array(clone.players[1].deck.length).fill(null);
@@ -555,11 +546,13 @@
     if (UI.firstChoice === 'RANDOM') first = Math.random() < 0.5 ? 0 : 1;
     else if (UI.firstChoice === 'P1') first = 1;
 
+    setAIDifficulty(UI.aiDifficulty);
     UI.G = createGameState({
       mode: UI.lobbyMode,
       p0Faction: UI.p0Faction,
       p1Faction: UI.p1Faction,
-      firstPlayer: first
+      firstPlayer: first,
+      aiDifficulty: UI.aiDifficulty
     });
     UI.screen = 'GAME';
     UI.selectedHandUid = null;
@@ -593,50 +586,166 @@
     return '';
   }
 
+  // ==========================================
+  // v3.1 新增：基本遊戲教學 & FAQ 視窗
+  // ==========================================
+  function openGuideFaqModal(tab) {
+    if (tab) UI.guideTab = tab;
+    const isTut = UI.guideTab === 'TUTORIAL';
+    const root = document.getElementById('modal-root');
+
+    const tutorialHtml = `
+      <div class="space-y-4">
+        <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-100 leading-relaxed">
+          🎯 <b>遊戲目標：</b>把對手的「<b>國力</b>」（初始 30 點）降到 0 以下即獲勝！每一回合運用糧草部署武將、施放謀略、安排五格站位，拿下天下。
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+            <div class="text-amber-300 font-bold text-sm mb-1">1️⃣ 起手與糧草節奏</div>
+            <ul class="list-disc pl-4 space-y-1 text-xs text-slate-300 leading-relaxed">
+              <li>先手拿 3 張手牌（首回合不抽牌）；後手拿 4 張並多一張 0 費【急行軍】（+1 臨時糧草）。</li>
+              <li>起手調度建議留下 <b>1～3 費武將</b>，確保前期能穩定鋪場。</li>
+              <li>第 1～5 回合每回合糧草 +1，第 6 回合起每 2 回合 +1，<b>上限為 8 糧</b>。</li>
+              <li>回合結束沒花完的普通糧草會自動存入「<b>糧倉</b>」（上限 3 點），之後可用來打謀略牌與開主動技。</li>
+            </ul>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+            <div class="text-amber-300 font-bold text-sm mb-1">2️⃣ 五格排陣與「相鄰護衛」</div>
+            <ul class="list-disc pl-4 space-y-1 text-xs text-slate-300 leading-relaxed">
+              <li>戰場分為 <b>1～5 號位</b>，沒有固定前排，但帶「<b>護衛</b>」的武將會保護左右相鄰一格的非護衛友軍。</li>
+              <li>把高攻脆皮武將（如黃忠、呂布、貂蟬）放在護衛旁邊，能大幅提升存活率。</li>
+              <li><b>2 號位、4 號位</b>可同時掩護左右兩格，也能觸發【聲東擊西】抽牌加成。</li>
+            </ul>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+            <div class="text-amber-300 font-bold text-sm mb-1">3️⃣ 出牌與攻擊操作</div>
+            <ul class="list-disc pl-4 space-y-1 text-xs text-slate-300 leading-relaxed">
+              <li><b>部署武將：</b>點擊手牌武將 → 點擊己方任一空格上陣（新上場處於「整備中」，下回合才能攻擊；有「突襲」可立刻攻擊）。</li>
+              <li><b>發動攻擊：</b>點擊綠框「可攻擊」武將 → 點擊敵方武將；敵方前排空無一人時，直接點擊上方「敵方國力條」直擊！</li>
+              <li><b>主動技：</b>點擊帶「✨主動」標籤的武將，再按中間工具列的紫色技能按鈕即可發動。</li>
+            </ul>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+            <div class="text-amber-300 font-bold text-sm mb-1">4️⃣ 血線與動態手牌上限</div>
+            <ul class="list-disc pl-4 space-y-1 text-xs text-slate-300 leading-relaxed">
+              <li>國力越高能留的手牌越多：<b>21～30 國力上限 8 張</b>、<b>11～20 上限 6 張</b>、<b>1～10 上限 4 張</b>。</li>
+              <li>回合結束時若超過上限，會跳出視窗讓你自選棄牌，所以低血量時要注意控牌。</li>
+              <li>組牌工坊可自由搭配「<b>1 主陣營 + 最多 1 副陣營（≤4 費最多 10 張）+ 中立</b>」，湊滿 30 張即可出戰。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const faqHtml = `
+      <div class="space-y-3 text-xs sm:text-sm">
+        <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+          <div class="font-bold text-amber-300">Q1：為什麼剛上場的武將不能攻擊？【鄧艾】明明有突襲，為什麼登場回合不能打敵方國力？</div>
+          <p class="text-slate-300 mt-1 leading-relaxed">一般武將剛上場會進入「整備中」，需等到下一個己方回合才能攻擊；帶有「突襲」的武將可立刻攻擊敵方武將（若敵方空場則可直擊國力）。但 v3.1 為平衡節奏，<b>鄧艾登場當回合無法攻擊敵方國力</b>，需等到下一回合起才能無視敵陣直擊國力。</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+          <div class="font-bold text-amber-300">Q2：什麼是「1 大回合」？為什麼趙雲、曹仁開了護甲後，輪到對手時還有效？</div>
+          <p class="text-slate-300 mt-1 leading-relaxed">v3.1 起，所有標示「1 大回合（或本回合與下個敵方回合）」的增益／減益，都會涵蓋<b>己方當前整個回合 + 對手下一個完整回合</b>，直到對手回合結束時才解除；標示「本回合」的效果則在己方回合結束時解除。</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+          <div class="font-bold text-amber-300">Q3：糧倉（預備糧草）怎麼累積？為什麼我有糧倉卻不能拿來出武將？</div>
+          <p class="text-slate-300 mt-1 leading-relaxed">每次結束回合時，沒花完的普通糧草會自動存入糧倉（上限 3 點，臨時糧草不存入）。糧倉設計上<b>僅供「謀略牌」與「武將主動技」使用</b>，無法用來支付武將上場費用，用來鼓勵留費打反制與技能。</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+          <div class="font-bold text-amber-300">Q4：牌庫抽乾了、其中一方完全沒武將了怎麼判勝負？</div>
+          <p class="text-slate-300 mt-1 leading-relaxed">v3.1 新增殘局提早判勝：當一方<b>牌庫為 0 且場上與手牌均無武將牌</b>，而另一方場上或手牌仍有武將時，直接判定有武將方獲勝（省去慢慢敲國力的垃圾時間）。若雙方都無牌庫且無武將，則繼續把手上還能出的謀略牌打完，最後比較剩餘國力分勝負。</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+          <div class="font-bold text-amber-300">Q5：四種 AI 難度差在哪裡？「宗師」AI 會作弊偷看我的手牌嗎？</div>
+          <p class="text-slate-300 mt-1 leading-relaxed"><b>初級</b>會刻意帶隨機失誤；<b>中級</b>會評估完整盤面與護衛站位；<b>困難</b>會用 Beam Search 模擬整回合最佳出牌與斬殺順序；<b>宗師</b>進一步推演你下回合的反擊威脅。<b>宗師 AI 模擬時會清空你的手牌資料</b>，只根據場上可見資訊判斷，絕不偷看玩家手牌。</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+          <div class="font-bold text-amber-300">Q6：武將的「回復生命」會超過原本的生命上限嗎？</div>
+          <p class="text-slate-300 mt-1 leading-relaxed">不會。所有「回復生命」（例如華佗【青囊】、魏延【狂骨】、貂蟬【閉月】）最高只會補回到武將目前的生命上限；只有明確寫著「+X/+Y」（例如桃園結義、擂鼓助威）才會同時提高生命上限。</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
+          <div class="font-bold text-amber-300">Q7：要怎麼跟朋友線上 1v1 對戰？</div>
+          <p class="text-slate-300 mt-1 leading-relaxed">在主選單將對戰模式切換為「🌐 線上好友」，選好出戰陣營後按「建立房間」，把 4 位數房號或邀請連結傳給好友，好友輸入房號（或直接點連結）即可透過 P2P 免伺服器直接開戰。</p>
+        </div>
+      </div>
+    `;
+
+    root.innerHTML = `
+      <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" data-close-backdrop="1">
+        <div class="bg-[#141923] gold-border rounded-2xl max-w-3xl w-full max-h-[86vh] flex flex-col shadow-2xl overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-amber-500/25 flex items-center justify-between bg-[#1b2230]">
+            <div class="flex items-center gap-2">
+              <h2 class="font-serif-tc text-xl font-bold text-amber-300">🎓 基本遊戲教學與 FAQ</h2>
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-200 border border-amber-400/30">v3.1</span>
+            </div>
+            <button type="button" data-close-modal="1" class="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800">✕</button>
+          </div>
+          <div class="px-5 py-2.5 bg-[#101520] border-b border-slate-800 flex gap-2">
+            <button type="button" data-guide-tab="TUTORIAL" class="px-4 py-1.5 rounded-lg text-xs font-bold border transition ${isTut ? 'bg-amber-500 text-slate-950 border-amber-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'}">
+              📖 基本遊戲教學
+            </button>
+            <button type="button" data-guide-tab="FAQ" class="px-4 py-1.5 rounded-lg text-xs font-bold border transition ${!isTut ? 'bg-indigo-500 text-white border-indigo-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'}">
+              ❓ 常見問題 FAQ
+            </button>
+          </div>
+          <div class="p-5 overflow-y-auto">${isTut ? tutorialHtml : faqHtml}</div>
+          <div class="px-5 py-3 border-t border-slate-800 bg-[#11151e] flex justify-end">
+            <button type="button" data-close-modal="1" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-sm">開始征戰</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function openRulebookModal() {
     const root = document.getElementById('modal-root');
     root.innerHTML = `
       <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" data-close-backdrop="1">
         <div class="bg-[#141923] gold-border rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
           <div class="px-5 py-4 border-b border-amber-500/25 flex items-center justify-between bg-[#1b2230]">
-            <h2 class="font-serif-tc text-xl font-bold text-amber-300">《三國·謀定天下》完整遊戲規則手冊（v3.0）</h2>
+            <h2 class="font-serif-tc text-xl font-bold text-amber-300">《三國·謀定天下》完整遊戲規則手冊（v3.1）</h2>
             <button type="button" data-close-modal="1" class="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800">✕</button>
           </div>
           <div class="p-5 overflow-y-auto space-y-4 text-sm text-slate-200 leading-relaxed">
             <section>
               <h3 class="font-bold text-amber-300 mb-1">一、遊戲概述與勝利條件</h3>
               <ul class="list-disc pl-5 space-y-1 text-slate-300">
-                <li>雙方初始國力各 <b>30 點</b>，初始牌庫 <b>30 張</b>（同名最多 2 張；1 主陣營 + 最多 1 副陣營上限 10 張且限 ≤4 費 + 中立）。</li>
+                <li>雙方初始國力各 <b>30 點</b>，構築卡池共 <b>82 張</b>，每副卡組 <b>30 張</b>（同名最多 2 張；1 主陣營 + 最多 1 副陣營上限 10 張且限 ≤4 費 + 中立）。</li>
                 <li>先手初始手牌 <b>3 張</b>，後手 <b>4 張</b>；開局前雙方皆可進行<b>起手調度（Mulligan）</b>。</li>
-                <li>率先將敵方國力降至 <b>0 或以下</b>者勝；若雙方牌庫耗盡且同時無法行動，剩餘國力較高者勝。</li>
+                <li>率先將敵方國力降至 <b>0 或以下</b>者勝。</li>
+                <li><b>殘局提早判勝：</b>若一方牌庫歸零且場上與手牌均無武將，而另一方仍有武將（場上或手牌），直接判有武將方獲勝；若雙方均無武將，須待可用謀略牌耗盡後比較剩餘國力分勝負。</li>
               </ul>
             </section>
             <section>
-              <h3 class="font-bold text-amber-300 mb-1">二、五格戰場與🛡️相鄰守護機制</h3>
+              <h3 class="font-bold text-amber-300 mb-1">二、五格戰場與🛡️相鄰護衛機制</h3>
               <ul class="list-disc pl-5 space-y-1 text-slate-300">
-                <li>手牌上限 <b>10 張</b>，超出上限直接進入墓地（爆牌）。</li>
-                <li>每位玩家擁有 <b>5 個上陣位</b>：<b>1號位左翼、2號位左輔、3號位中軍、4號位右輔、5號位右翼</b>。所有位置平等，不再設有固定站位保護。</li>
-                <li><b>相鄰守護機制：</b>僅帶有「<b>守護</b>」關鍵字的武將會保護與其相鄰（左一格與右一格）的非守護友軍免受敵方普通攻擊；狙擊與謀略牌不受此限。</li>
-                <li>敵方前排 3 個上陣位全空時，武將方可直接攻擊敵方國力。</li>
+                <li>每位玩家擁有 <b>5 個上陣位</b>：<b>1號位左翼、2號位左輔、3號位中軍、4號位右輔、5號位右翼</b>。</li>
+                <li><b>相鄰護衛：</b>僅帶有「<b>護衛</b>」的武將會保護與其相鄰（左一格與右一格）的非護衛友軍免受敵方普通攻擊；狙擊與謀略牌不受此限。</li>
+                <li>敵方 5 格全空時，已就緒的武將可直接攻擊敵方國力（鄧艾登場當回合除外）。</li>
               </ul>
             </section>
             <section>
-              <h3 class="font-bold text-amber-300 mb-1">三、糧草與回合流程</h3>
+              <h3 class="font-bold text-amber-300 mb-1">三、糧草、糧倉與大回合制</h3>
               <ul class="list-disc pl-5 space-y-1 text-slate-300">
-                <li>第 1～5 回合每回合糧草上限 +1，第 6 回合起改為每 2 回合 +1（封頂 7 點）並充滿；後手第 1 回合額外獲得 0 費謀略【急行軍】。</li>
-                <li><b>1. 抽牌階段：</b>抽 1 張牌（先手第 1 回合不抽牌），解除整備並重置護甲。</li>
-                <li><b>2. 主要階段：</b>自由交替打出武將牌、謀略牌與發動攻擊。</li>
-                <li><b>3. 結束階段：</b>若目前手牌超過國力對應上限（21～30 國力上限 8 張、11～20 上限 6 張、1～10 上限 4 張），需先自選棄牌；未使用普通糧草存入「<b>糧倉</b>」（上限 3 點，供謀略牌與主動技使用），並結算持續效果。</li>
-                <li><b>4. 換手：</b>輪到對手回合。</li>
+                <li>第 1～5 回合每回合糧草上限 +1，第 6 回合起改為每 2 回合 +1（<b>封頂 8 點</b>）並充滿；後手第 1 回合獲得 0 費謀略【急行軍】。</li>
+                <li><b>大回合持續時間：</b>所有標示「1 大回合」的增益與減益涵蓋己方本回合與下一個敵方回合，於敵方回合結束時解除。</li>
+                <li><b>結束階段：</b>手牌若超過動態上限（21～30 國力上限 8 張、11～20 上限 6 張、1～10 上限 4 張）需先自選棄牌；未用完普通糧草存入「<b>糧倉</b>」（上限 3 點，供謀略與主動技使用）。</li>
               </ul>
             </section>
             <section>
-              <h3 class="font-bold text-amber-300 mb-1">四、武將戰鬥、陣營克制與關鍵字</h3>
+              <h3 class="font-bold text-amber-300 mb-1">四、關鍵字與主動技能</h3>
               <ul class="list-disc pl-5 space-y-1 text-slate-300">
-                <li><b>整備狀態：</b>武將剛上場無法攻擊，但會觸發「登場時」效果；下個己方回合解除整備。</li>
-                <li><b>反擊傷害：</b>武將交戰時，防守方會同時造成等同攻擊力的反擊傷害。</li>
-                <li><b>技能與主動技：</b>v3.0 移除陣營相剋，強化各國武將專屬技能；部分名將與軍師擁有每回合限 1 次的<b>主動技</b>（優先消耗糧倉）或<b>二選一／三選一抉擇</b>。</li>
-                <li><b>破甲：</b>普通攻擊無視護甲｜<b>護衛：</b>保護相鄰左右友軍免受普攻｜<b>突襲：</b>登場即行動，敵方空場可直擊國力｜<b>帷幕：</b>不受謀略牌指定｜<b>斬殺／連擊／遺計／狙擊</b>。</li>
+                <li><b>破甲：</b>普通攻擊無視護甲｜<b>護衛：</b>保護相鄰左右友軍免受普攻｜<b>突襲：</b>登場即行動，敵空場可直擊國力｜<b>狙擊：</b>普通攻擊無視護衛｜<b>帷幕：</b>不受謀略牌指定｜<b>斬殺／連擊／遺計</b>。</li>
               </ul>
             </section>
           </div>
@@ -654,23 +763,23 @@
     const items = p.graveyard.length === 0
       ? `<p class="text-slate-400 text-sm py-8 text-center">墓地目前空無一物。</p>`
       : `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          ${p.graveyard.slice().reverse().map(c => {
-            const f = FACTIONS[c.faction];
-            return `
-              <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-700/70 flex items-start gap-3">
-                <div class="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center text-lg shrink-0">${c.icon}</div>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="font-bold text-slate-100 text-sm">${c.name}</span>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span>
-                    <span class="text-xs text-amber-300 ml-auto">${c.cost} 糧</span>
-                  </div>
-                  <p class="text-xs text-slate-400 mt-1">${c.text}</p>
+        ${p.graveyard.slice().reverse().map(c => {
+          const f = FACTIONS[c.faction];
+          return `
+            <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-700/70 flex items-start gap-3">
+              <div class="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center text-lg shrink-0">${c.icon}</div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-bold text-slate-100 text-sm">${c.name}</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span>
+                  <span class="text-xs text-amber-300 ml-auto">${c.cost} 糧</span>
                 </div>
+                <p class="text-xs text-slate-400 mt-1">${c.text}</p>
               </div>
-            `;
-          }).join('')}
-        </div>`;
+            </div>
+          `;
+        }).join('')}
+      </div>`;
     root.innerHTML = `
       <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" data-close-backdrop="1">
         <div class="bg-[#141923] gold-border rounded-2xl max-w-xl w-full max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
@@ -683,7 +792,6 @@
       </div>
     `;
   }
-
 
   function openCompendiumModal() {
     const root = document.getElementById('modal-root');
@@ -725,24 +833,18 @@
             </div>
             <button type="button" data-close-modal="1" class="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800">✕</button>
           </div>
-
           <div class="px-5 py-3 bg-[#101520] border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
             <div class="flex flex-wrap gap-1.5">
               ${facTabs.map(t => `
-                <button type="button" data-comp-faction="${t.id}" class="px-2.5 py-1 rounded-lg text-xs font-bold border transition ${fac === t.id ? 'bg-amber-500 text-slate-950 border-amber-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'}">
-                  ${t.label}
-                </button>
+                <button type="button" data-comp-faction="${t.id}" class="px-2.5 py-1 rounded-lg text-xs font-bold border transition ${fac === t.id ? 'bg-amber-500 text-slate-950 border-amber-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'}">${t.label}</button>
               `).join('')}
             </div>
             <div class="flex gap-1.5">
               ${typeTabs.map(t => `
-                <button type="button" data-comp-type="${t.id}" class="px-2.5 py-1 rounded-lg text-xs font-bold border transition ${typ === t.id ? 'bg-indigo-500 text-white border-indigo-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'}">
-                  ${t.label}
-                </button>
+                <button type="button" data-comp-type="${t.id}" class="px-2.5 py-1 rounded-lg text-xs font-bold border transition ${typ === t.id ? 'bg-indigo-500 text-white border-indigo-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'}">${t.label}</button>
               `).join('')}
             </div>
           </div>
-
           <div class="p-4 sm:p-5 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             ${allCards.map(c => {
               const f = FACTIONS[c.faction] || FACTIONS.NEU;
@@ -813,12 +915,14 @@
       `;
     }).join('');
 
+    const curDiff = AI_DIFFICULTIES[UI.aiDifficulty] || AI_DIFFICULTIES.normal;
+
     return `
       <div class="flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
         <div class="w-full max-w-4xl bg-[#131822]/95 gold-border rounded-2xl shadow-2xl overflow-hidden">
           <div class="relative px-6 py-7 sm:py-9 text-center border-b border-amber-500/25 bg-gradient-to-b from-[#1e2433] to-[#131822]">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium mb-3">
-              <span>完整規則 v3.0</span>
+              <span>完整規則 v3.1</span>
               <span>•</span>
               <span>1v1 策略卡牌對戰</span>
             </div>
@@ -826,31 +930,25 @@
               三國・謀定天下
             </h1>
             <p class="text-slate-300 text-sm sm:text-base mt-2 max-w-xl mx-auto">
-              五格排陣相鄰守護，糧倉調度定乾坤。蜀、群、魏、吳雙陣營合縱連橫，運籌帷幄逐鹿中原。
+              五格排陣相鄰護衛，糧倉調度定乾坤。蜀、魏、吳、群雙陣營合縱連橫，運籌帷幄逐鹿中原。
             </p>
             <div class="mt-4 inline-flex flex-wrap items-center justify-center gap-2 text-xs bg-slate-950/70 px-3.5 py-1.5 rounded-full border border-slate-700/80">
               <span class="text-red-300 font-bold">蜀</span>
               <span class="text-blue-300 font-bold">魏</span>
               <span class="text-emerald-300 font-bold">吳</span>
               <span class="text-purple-300 font-bold">群</span>
-              <span class="text-slate-400">• 5格排陣 • 主動抉擇 • 動態手牌上限</span>
+              <span class="text-slate-400">• 82張卡池 • 8糧上限 • 四段AI難度</span>
             </div>
           </div>
 
-          <div class="p-5 sm:p-6 space-y-6">
+          <div class="p-5 sm:p-6 space-y-5">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-semibold text-amber-300/90 uppercase tracking-wider mb-2">對戰模式</label>
                 <div class="grid grid-cols-3 gap-2">
-                  <button type="button" data-set-mode="AI" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.lobbyMode === 'AI' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">
-                    🤖 單人 AI
-                  </button>
-                  <button type="button" data-set-mode="HOTSEAT" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.lobbyMode === 'HOTSEAT' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">
-                    ⚔️ 同屏 1v1
-                  </button>
-                  <button type="button" data-set-mode="ONLINE" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.lobbyMode === 'ONLINE' ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">
-                    🌐 線上好友
-                  </button>
+                  <button type="button" data-set-mode="AI" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.lobbyMode === 'AI' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">🤖 單人 AI</button>
+                  <button type="button" data-set-mode="HOTSEAT" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.lobbyMode === 'HOTSEAT' ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">⚔️ 同屏 1v1</button>
+                  <button type="button" data-set-mode="ONLINE" class="py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition ${UI.lobbyMode === 'ONLINE' ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'}">🌐 線上好友</button>
                 </div>
               </div>
               <div>
@@ -863,6 +961,25 @@
               </div>
             </div>
 
+            ${UI.lobbyMode === 'AI' ? `
+              <div class="p-3.5 rounded-xl bg-slate-900/70 border border-slate-700/80 space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="text-xs font-semibold text-amber-300/90 uppercase tracking-wider">🧠 AI 難度等級</span>
+                  <span class="text-xs text-slate-300">${curDiff.desc}</span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  ${Object.values(AI_DIFFICULTIES).map(d => `
+                    <button type="button" data-set-ai-diff="${d.id}"
+                      class="py-2 px-2.5 rounded-xl border text-xs font-bold transition ${UI.aiDifficulty === d.id
+                        ? 'bg-indigo-500/25 border-indigo-400 text-indigo-100 ring-1 ring-indigo-400/50'
+                        : 'bg-slate-950/70 border-slate-700 text-slate-300 hover:border-slate-500'}">
+                      ${d.name}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <div class="flex items-center justify-between mb-2">
@@ -871,80 +988,58 @@
                 <div class="grid grid-cols-2 gap-2.5">${renderFactionCards(UI.p0Faction, 'p0')}</div>
               </div>
               ${UI.lobbyMode === 'ONLINE' ? `
-              <div class="flex flex-col justify-between p-4 rounded-xl bg-slate-900/80 border border-emerald-500/35 space-y-4">
-                <div>
-                  <div class="text-sm font-bold text-emerald-300 mb-1">🌐 好友房號連線（免伺服器）</div>
-                  <p class="text-xs text-slate-400 leading-relaxed">先在左側選好你的出戰陣營，再選擇「建立房間」把房號或連結傳給好友，或輸入好友的房號直接加入。</p>
-                </div>
-
-                <div class="space-y-2.5">
-                  <button type="button" data-action="online-host" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition">
-                    🏯 建立房間（我是房主）
-                  </button>
-                  ${UI.onlineRole === 'HOST' && UI.onlineStatus === 'WAITING' ? `
-                    <div class="p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/50 space-y-2">
-                      <div class="flex items-center justify-between">
-                        <span class="text-xs text-emerald-200">房間已建立！等待好友加入…</span>
-                        <span class="font-mono text-lg font-black tracking-widest text-amber-300">${UI.onlineRoomCode}</span>
-                      </div>
-                      <div class="flex gap-2">
-                        <button type="button" data-action="copy-room-code" class="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-100 border border-slate-600">📋 複製房號</button>
-                        <button type="button" data-action="copy-invite-link" class="flex-1 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-xs text-amber-200 border border-amber-400/50">🔗 複製邀請連結</button>
-                      </div>
-                    </div>
-                  ` : ''}
-                </div>
-
-                <div class="pt-3 border-t border-slate-800 space-y-2">
-                  <label class="block text-xs font-semibold text-slate-300">已有好友房號？直接加入：</label>
-                  <div class="flex gap-2">
-                    <input id="online-room-input" type="text" maxlength="6" inputmode="numeric" placeholder="輸入 4 位房號"
-                      value="${UI.onlineInputCode}"
-                      class="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-amber-200 font-mono text-sm tracking-widest focus:outline-none focus:border-emerald-400" />
-                    <button type="button" data-action="online-join" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm">
-                      加入
-                    </button>
+                <div class="flex flex-col justify-between p-4 rounded-xl bg-slate-900/80 border border-emerald-500/35 space-y-4">
+                  <div>
+                    <div class="text-sm font-bold text-emerald-300 mb-1">🌐 好友房號連線（免伺服器）</div>
+                    <p class="text-xs text-slate-400 leading-relaxed">先在左側選好你的出戰陣營，再選擇「建立房間」把房號或連結傳給好友，或輸入好友的房號直接加入。</p>
                   </div>
+                  <div class="space-y-2.5">
+                    <button type="button" data-action="online-host" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition">🏯 建立房間（我是房主）</button>
+                    ${UI.onlineRole === 'HOST' && UI.onlineStatus === 'WAITING' ? `
+                      <div class="p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/50 space-y-2">
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs text-emerald-200">房間已建立！等待好友加入…</span>
+                          <span class="font-mono text-lg font-black tracking-widest text-amber-300">${UI.onlineRoomCode}</span>
+                        </div>
+                        <div class="flex gap-2">
+                          <button type="button" data-action="copy-room-code" class="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-100 border border-slate-600">📋 複製房號</button>
+                          <button type="button" data-action="copy-invite-link" class="flex-1 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-xs text-amber-200 border border-amber-400/50">🔗 複製邀請連結</button>
+                        </div>
+                      </div>
+                    ` : ''}
+                  </div>
+                  <div class="pt-3 border-t border-slate-800 space-y-2">
+                    <label class="block text-xs font-semibold text-slate-300">已有好友房號？直接加入：</label>
+                    <div class="flex gap-2">
+                      <input id="online-room-input" type="text" maxlength="6" inputmode="numeric" placeholder="輸入 4 位房號" value="${UI.onlineInputCode}" class="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-amber-200 font-mono text-sm tracking-widest focus:outline-none focus:border-emerald-400" />
+                      <button type="button" data-action="online-join" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm">加入</button>
+                    </div>
+                  </div>
+                  ${UI.onlineStatus === 'LOADING' || UI.onlineStatus === 'CONNECTING' ? `<div class="text-xs text-amber-300 font-medium">⏳ ${UI.onlineStatus === 'LOADING' ? '正在載入連線模組並建立房間…' : `正在連線至房號 ${UI.onlineRoomCode}…`}</div>` : ''}
+                  ${UI.onlineError ? `<div class="text-xs text-rose-300 bg-rose-950/60 border border-rose-500/40 rounded-lg px-3 py-2">⚠️ ${UI.onlineError}</div>` : ''}
                 </div>
-
-                ${UI.onlineStatus === 'LOADING' || UI.onlineStatus === 'CONNECTING' ? `
-                  <div class="text-xs text-amber-300 font-medium">⏳ ${UI.onlineStatus === 'LOADING' ? '正在載入連線模組並建立房間…' : `正在連線至房號 ${UI.onlineRoomCode}…`}</div>
-                ` : ''}
-                ${UI.onlineError ? `
-                  <div class="text-xs text-rose-300 bg-rose-950/60 border border-rose-500/40 rounded-lg px-3 py-2">⚠️ ${UI.onlineError}</div>
-                ` : ''}
-              </div>
               ` : `
-              <div>
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-bold text-rose-200">${UI.lobbyMode === 'AI' ? '敵軍 AI 主陣營' : '玩家二主陣營'}</span>
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-bold text-rose-200">${UI.lobbyMode === 'AI' ? `敵軍 AI 主陣營（${curDiff.name}）` : '玩家二主陣營'}</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2.5">${renderFactionCards(UI.p1Faction, 'p1')}</div>
                 </div>
-                <div class="grid grid-cols-2 gap-2.5">${renderFactionCards(UI.p1Faction, 'p1')}</div>
-              </div>
               `}
             </div>
 
             <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
               <div class="flex flex-wrap gap-2">
-                <button type="button" data-action="open-deckbuilder" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">
-                  🃏 組牌工坊（30張）
-                </button>
-                <button type="button" data-action="open-compendium" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">
-                  📚 卡牌圖鑑
-                </button>
-                <button type="button" data-action="open-rules" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">
-                  📜 完整規則手冊
-                </button>
-                <button type="button" data-action="toggle-mute" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">
-                  ${Sound.muted ? '🔇 靜音' : '🔊 音效'}
-                </button>
+                <button type="button" data-action="open-guide" class="px-3.5 py-2.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/50 text-indigo-100 text-sm font-semibold transition">🎓 教學與 FAQ</button>
+                <button type="button" data-action="open-deckbuilder" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">🃏 組牌工坊</button>
+                <button type="button" data-action="open-compendium" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">📚 卡牌圖鑑</button>
+                <button type="button" data-action="open-rules" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">📜 規則手冊</button>
+                <button type="button" data-action="toggle-mute" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-sm font-semibold transition">${Sound.muted ? '🔇 靜音' : '🔊 音效'}</button>
               </div>
               ${UI.lobbyMode === 'ONLINE' ? `
                 <span class="text-xs text-emerald-300/90 font-medium">🌐 請於右側建立或加入房間開始連線對戰</span>
               ` : `
-                <button type="button" data-action="start-match" class="px-7 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold text-base shadow-lg gold-glow transition">
-                  ⚔️ 鳴鼓開戰
-                </button>
+                <button type="button" data-action="start-match" class="px-7 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold text-base shadow-lg gold-glow transition">⚔️ 鳴鼓開戰</button>
               `}
             </div>
           </div>
@@ -979,20 +1074,14 @@
             <h2 class="font-serif-tc text-xl font-bold text-amber-300">組牌工坊</h2>
             <div class="flex gap-1.5">
               ${FACTION_LIST.map(f => `
-                <button type="button" data-db-faction="${f}" class="px-3 py-1 rounded-lg text-xs font-bold border ${fid === f ? 'bg-amber-500 text-slate-950 border-amber-300' : 'bg-slate-900 text-slate-300 border-slate-700'}">
-                  ${FACTIONS[f].name}
-                </button>
+                <button type="button" data-db-faction="${f}" class="px-3 py-1 rounded-lg text-xs font-bold border ${fid === f ? 'bg-amber-500 text-slate-950 border-amber-300' : 'bg-slate-900 text-slate-300 border-slate-700'}">${FACTIONS[f].name}</button>
               `).join('')}
             </div>
           </div>
           <div class="flex items-center gap-2.5">
-            <span class="text-sm font-bold ${UI.dbCards.length === DECK_SIZE ? 'text-emerald-400' : 'text-amber-300'}">
-              牌庫數量：${UI.dbCards.length} / ${DECK_SIZE}
-            </span>
+            <span class="text-sm font-bold ${UI.dbCards.length === DECK_SIZE ? 'text-emerald-400' : 'text-amber-300'}">牌庫數量：${UI.dbCards.length} / ${DECK_SIZE}</span>
             <button type="button" data-action="db-reset" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-600">重置為預組</button>
-            <button type="button" data-action="db-save" class="px-4 py-1.5 rounded-lg text-sm font-bold ${validation.valid ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950' : 'bg-slate-700 text-slate-400 cursor-not-allowed'}" ${validation.valid ? '' : 'disabled'}>
-              💾 儲存卡組
-            </button>
+            <button type="button" data-action="db-save" class="px-4 py-1.5 rounded-lg text-sm font-bold ${validation.valid ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950' : 'bg-slate-700 text-slate-400 cursor-not-allowed'}" ${validation.valid ? '' : 'disabled'}>💾 儲存卡組</button>
           </div>
         </div>
 
@@ -1001,17 +1090,10 @@
             <span class="text-slate-400 font-semibold">副陣營（最多 ${MAX_SUB_FACTION_CARDS} 張，限 ≤${SUB_FACTION_MAX_COST} 費）：</span>
             <button type="button" data-db-subfaction="" class="px-2.5 py-1 rounded-lg border font-bold ${!subFid ? 'bg-slate-200 text-slate-950 border-white' : 'bg-slate-900 text-slate-400 border-slate-700'}">無</button>
             ${FACTION_LIST.filter(f => f !== fid).map(f => `
-              <button type="button" data-db-subfaction="${f}" class="px-2.5 py-1 rounded-lg border font-bold ${subFid === f ? 'bg-indigo-500 text-white border-indigo-300' : 'bg-slate-900 text-slate-300 border-slate-700'}">
-                ${FACTIONS[f].name}
-              </button>
+              <button type="button" data-db-subfaction="${f}" class="px-2.5 py-1 rounded-lg border font-bold ${subFid === f ? 'bg-indigo-500 text-white border-indigo-300' : 'bg-slate-900 text-slate-300 border-slate-700'}">${FACTIONS[f].name}</button>
             `).join('')}
           </div>
-          <span class="font-bold ${validation.subCount > MAX_SUB_FACTION_CARDS ? 'text-rose-400' : 'text-indigo-300'}">
-            副陣營已選：${validation.subCount} / ${MAX_SUB_FACTION_CARDS}
-          </span>
-        </div>
-        <div class="text-xs text-slate-400 px-1">
-          構築規則：共 ${DECK_SIZE} 張卡牌，同名最多 ${MAX_COPIES} 張；可選主陣營（${FACTIONS[fid].title}）＋最多 1 個副陣營（≤${SUB_FACTION_MAX_COST} 費，上限 ${MAX_SUB_FACTION_CARDS} 張）＋中立卡牌。
+          <span class="font-bold ${validation.subCount > MAX_SUB_FACTION_CARDS ? 'text-rose-400' : 'text-indigo-300'}">副陣營已選：${validation.subCount} / ${MAX_SUB_FACTION_CARDS}</span>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-6">
@@ -1030,7 +1112,7 @@
                     <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold shrink-0">${c.cost} 糧</span>
                   </div>
                   <div class="flex items-center gap-2 mt-1.5 text-xs">
-                    <span class="text-slate-400">${c.type === 'GENERAL' ? `⚔️${c.atk}  ❤️${c.hp}${c.armor ? `  🛡️${c.armor}` : ''}` : '📜 謀略牌'}</span>
+                    <span class="text-slate-400">${c.type === 'GENERAL' ? `⚔️${c.atk} ❤️${c.hp}${c.armor ? ` 🛡️${c.armor}` : ''}` : '📜 謀略牌'}</span>
                     <div class="flex gap-1">${(c.keywords || []).map(keywordBadgeHtml).join('')}</div>
                   </div>
                   <p class="text-xs text-slate-300 mt-1.5 leading-snug">${c.text}</p>
@@ -1057,19 +1139,14 @@
     const f = FACTIONS[u.faction];
     const atkVal = getUnitAtk(u, G);
     const maxAtks = getUnitMaxAttacks(u);
-    const ready = !isOpponentSide && isMyTurn && canUnitAttack(u);
+    const ready = !isOpponentSide && isMyTurn && canUnitAttack(u, G);
     const isSelectedAttacker = !isOpponentSide && UI.selectedAttackerSlot === slotIdx;
 
     let isValidTarget = false;
-    let counterBonusHint = false;
     if (isMyTurn) {
       if (UI.selectedAttackerSlot !== null && isOpponentSide) {
         const valid = getValidAttackTargets(G, viewIdx, UI.selectedAttackerSlot);
-        if (valid.slots.includes(slotIdx)) {
-          isValidTarget = true;
-          const atkUnit = G.players[viewIdx].board[UI.selectedAttackerSlot];
-          // v3.0: faction counter removed
-        }
+        if (valid.slots.includes(slotIdx)) isValidTarget = true;
       } else if (UI.selectedHandUid !== null) {
         const card = G.players[viewIdx].hand.find(c => c.uid === UI.selectedHandUid);
         if (card && card.type === 'TACTIC') {
@@ -1080,6 +1157,7 @@
     }
 
     const hasGuard = unitHasGuard(u);
+    const silencedNow = isUnitSilenced(u);
     const anims = G.animEvents || [];
     const didAttack = anims.some(a => a.kind === 'attack' && a.attackerOwner === ownerIdx && a.attackerSlot === slotIdx);
     const hitEvt = anims.find(a => a.kind === 'attack' && a.targetType === 'UNIT' && a.targetOwner === ownerIdx && a.targetSlot === slotIdx);
@@ -1119,7 +1197,7 @@
     const effectsHtml = u.effects.map(e => {
       const cls = e.type === 'burn'
         ? 'bg-orange-950/90 text-orange-300 border-orange-500/50'
-        : e.val < 0
+        : (e.val < 0 || e.type === 'temp_silence' || e.type === 'no_active')
         ? 'bg-indigo-950/90 text-indigo-300 border-indigo-500/50'
         : 'bg-emerald-950/90 text-emerald-300 border-emerald-500/50';
       return `<span class="px-1 py-0.5 rounded text-[9px] border ${cls}">${e.label} ${e.turns}t</span>`;
@@ -1140,7 +1218,7 @@
           ${u.isPrep ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-700/80 text-slate-300">💤 整備中</span>` : ''}
           ${!u.isPrep && u.attacksUsed < maxAtks && !isOpponentSide ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">可攻擊${maxAtks > 1 ? ` (${maxAtks - u.attacksUsed}/${maxAtks})` : ''}</span>` : ''}
           ${!u.isPrep && u.attacksUsed >= maxAtks ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">已行動</span>` : ''}
-          ${u.silenced ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-600">🔇已沉默</span>` : ''}
+          ${silencedNow ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-600">🔇已沉默</span>` : ''}
           ${u.frozenNextTurn ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-950 text-sky-300 border border-sky-500/50">🕊️緩兵</span>` : ''}
           ${canActive ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/25 text-amber-200 border border-amber-400/60">✨主動</span>` : ''}
           ${u.keywords.map(keywordBadgeHtml).join('')}
@@ -1157,7 +1235,6 @@
           </div>
         </div>
 
-        ${counterBonusHint ? `<div class="absolute -top-2.5 right-2 px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black shadow">克制 +1傷!</div>` : ''}
         ${hasGuard ? `<div class="absolute -top-2.5 left-2 px-1.5 py-0.5 rounded-full bg-indigo-500 text-white text-[9px] font-black shadow">🛡️護衛</div>` : ''}
         ${isBurning ? `<svg class="flame-overlay absolute bottom-0 left-0 w-full h-8 opacity-80" viewBox="0 0 120 32" preserveAspectRatio="none"><defs><linearGradient id="fg-${u.uid}" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#dc2626" stop-opacity="0.85"/><stop offset="60%" stop-color="#f97316" stop-opacity="0.55"/><stop offset="100%" stop-color="#fde047" stop-opacity="0"/></linearGradient></defs><path d="M0,32 Q12,10 24,26 Q38,4 52,24 Q68,2 82,25 Q96,8 108,24 Q115,14 120,32 Z" fill="url(#fg-${u.uid})"/></svg>` : ''}
         ${isPoisoned ? `<div class="poison-overlay absolute bottom-1 right-2 text-xs">🫧☠️</div>` : ''}
@@ -1225,7 +1302,6 @@
 
     const hpPct = Math.max(0, Math.min(100, (p.hp / p.maxHp) * 100));
     const vfx = G.vfxEvents.filter(v => v.targetKey === `hero-${pIdx}`);
-    const heroHit = (G.animEvents || []).some(a => a.kind === 'attack' && a.targetType === 'HERO' && a.targetOwner === pIdx);
     const vfxHtml = vfx.map(v => `<div class="float-dmg text-base ${v.colorClass}">${v.text}</div>`).join('');
 
     return `
@@ -1233,9 +1309,7 @@
         class="relative flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#141a26]/95 border ${canHitThisHero ? 'target-valid border-red-400' : G.activePlayer === pIdx ? 'border-amber-400/70 shadow-md' : 'border-slate-800'} transition">
         ${vfxHtml}
         <div class="flex items-center gap-2.5">
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center font-serif-tc font-black text-lg border ${f.badgeBg}">
-            ${f.name}
-          </div>
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center font-serif-tc font-black text-lg border ${f.badgeBg}">${f.name}</div>
           <div>
             <div class="flex items-center gap-2">
               <span class="font-bold text-sm sm:text-base text-slate-100">${p.name}</span>
@@ -1256,18 +1330,14 @@
           <div class="px-2.5 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/35 text-amber-200 font-bold">
             🌾 糧草 ${p.food}/${p.maxFood}${p.tempFood > 0 ? ` <span class="text-yellow-300">(+${p.tempFood}臨)</span>` : ''}
           </div>
-          <div class="px-2.5 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-orange-200 font-bold" title="糧倉：回合結束自動儲存未用完的普通糧草（上限 3），僅可用於謀略牌與強化效果">
+          <div class="px-2.5 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-orange-200 font-bold" title="糧倉：回合結束自動儲存未用完的普通糧草（上限 3），僅可用於謀略牌與主動技">
             🏯 糧倉 ${p.reserveFood || 0}/${MAX_RESERVE_FOOD}
           </div>
-          <div class="px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700 text-slate-200">
-            📚 牌庫 <b>${p.deck.length}</b>
-          </div>
+          <div class="px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700 text-slate-200">📚 牌庫 <b>${p.deck.length}</b></div>
           <div class="px-2.5 py-1.5 rounded-lg border ${p.hand.length > getHandLimit(p.hp) ? 'bg-rose-950/90 border-rose-500 text-rose-200 animate-pulse' : 'bg-slate-800/90 border-slate-700 text-slate-200'}" title="手牌上限隨國力遞減：21-30國力=8張、11-20=6張、1-10=4張">
             🃏 手牌 <b>${p.hand.length}</b>/${getHandLimit(p.hp)}
           </div>
-          <button type="button" data-open-graveyard="${pIdx}" class="px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-200 transition">
-            🪦 墓地 <b>${p.graveyard.length}</b>
-          </button>
+          <button type="button" data-open-graveyard="${pIdx}" class="px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-200 transition">🪨 墓地 <b>${p.graveyard.length}</b></button>
         </div>
       </div>
     `;
@@ -1359,11 +1429,8 @@
                 你是<b>${actor === G.firstPlayer ? '先手（3 張手牌，第 1 回合不抽牌）' : '後手（4 張手牌，第 1 回合獲得《急行軍》）'}</b>。點擊任意手牌標記換牌，確認後洗回牌庫並重抽相同張數。
               </p>
             </div>
-            <span class="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-bold">
-              已選換牌：${UI.mulliganSelected.size} 張
-            </span>
+            <span class="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-bold">已選換牌：${UI.mulliganSelected.size} 張</span>
           </div>
-
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-5">
             ${p.hand.map(c => {
               const isSel = UI.mulliganSelected.has(c.uid);
@@ -1389,11 +1456,8 @@
               `;
             }).join('')}
           </div>
-
           <div class="flex justify-end gap-3">
-            <button type="button" data-action="confirm-mulligan" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold text-sm shadow-lg">
-              確認調度並繼續
-            </button>
+            <button type="button" data-action="confirm-mulligan" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold text-sm shadow-lg">確認調度並繼續</button>
           </div>
         </div>
       </div>
@@ -1408,14 +1472,11 @@
           <div class="text-4xl mb-3">🛡️</div>
           <h2 class="font-serif-tc text-2xl font-bold text-amber-300">請交給 ${p.name}</h2>
           <p class="text-sm text-slate-300 mt-2">陣營：${FACTIONS[p.faction].title}。確認對手已避開螢幕後，點擊下方按鈕繼續。</p>
-          <button type="button" data-action="dismiss-curtain" class="mt-5 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm">
-            我已就位，顯示手牌
-          </button>
+          <button type="button" data-action="dismiss-curtain" class="mt-5 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm">我已就位，顯示手牌</button>
         </div>
       </div>
     `;
   }
-
 
   function renderPendingPromptOverlay() {
     const G = UI.G;
@@ -1437,6 +1498,77 @@
 
     const p = G.players[viewIdx];
     const enemy = G.players[1 - viewIdx];
+
+    // v3.1 新增：司馬懿【鷹視】檢視敵方手牌
+    if (pr.kind === 'REVEAL_ENEMY_HAND') {
+      const cards = pr.cards || [];
+      return `
+        <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-[#141923] gold-border rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col p-5 shadow-2xl gap-4 overflow-hidden">
+            <div class="flex items-center gap-2.5">
+              <span class="text-2xl">${pr.sourceIcon || '🐺'}</span>
+              <div>
+                <h3 class="font-serif-tc text-xl font-bold text-amber-300">${pr.sourceName}・【${pr.skillName}】</h3>
+                <p class="text-xs text-slate-300 mt-0.5">${pr.desc}</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 overflow-y-auto py-1">
+              ${cards.map(c => {
+                const f = FACTIONS[c.faction] || FACTIONS.NEU;
+                return `
+                  <div class="p-2.5 rounded-xl bg-[#1b2232] border border-slate-700">
+                    <div class="flex justify-between items-center">
+                      <span class="px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[11px] font-black">${c.cost}</span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span>
+                    </div>
+                    <div class="font-serif-tc font-bold text-sm text-amber-50 mt-1.5">${c.icon} ${c.name}</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">${c.type === 'GENERAL' ? `武將 ⚔️${c.baseAtk} ❤️${c.baseHp}` : '📜 謀略牌'}</div>
+                    <p class="text-[10px] text-slate-300 mt-1 line-clamp-3">${c.text}</p>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            <div class="flex justify-end pt-2 border-t border-slate-800">
+              <button type="button" data-action="prompt-reveal-ok" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold">確認關閉</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // v3.1 新增：張郃【料敵】查看並自選敵方 1 張手牌
+    if (pr.kind === 'PICK_ENEMY_HAND') {
+      const cards = pr.cards || [];
+      return `
+        <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-[#141923] gold-border rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col p-5 shadow-2xl gap-4 overflow-hidden">
+            <div class="flex items-center gap-2.5">
+              <span class="text-2xl">${pr.sourceIcon || '🎯'}</span>
+              <div>
+                <h3 class="font-serif-tc text-xl font-bold text-amber-300">${pr.sourceName}・【${pr.skillName}】</h3>
+                <p class="text-xs text-slate-300 mt-0.5">${pr.desc}</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 overflow-y-auto py-1">
+              ${cards.map(c => {
+                const f = FACTIONS[c.faction] || FACTIONS.NEU;
+                return `
+                  <button type="button" data-prompt-enemy-card="${c.uid}" class="text-left p-2.5 rounded-xl bg-[#1b2232] hover:bg-rose-950/60 border border-amber-500/40 hover:border-rose-400 transition">
+                    <div class="flex justify-between items-center">
+                      <span class="px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[11px] font-black">${c.cost}</span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span>
+                    </div>
+                    <div class="font-serif-tc font-bold text-sm text-amber-50 mt-1.5">${c.icon} ${c.name}</div>
+                    <div class="text-[10px] text-amber-300 mt-0.5">${c.type === 'TACTIC' ? '謀略：下回費 +1' : `武將：下回 -1/-1`}</div>
+                    <p class="text-[10px] text-slate-300 mt-1 line-clamp-2">${c.text}</p>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     if (pr.kind === 'CHOICE') {
       return `
@@ -1589,7 +1721,7 @@
       const u = G.players[viewIdx].board[UI.selectedAttackerSlot];
       const valid = getValidAttackTargets(G, viewIdx, UI.selectedAttackerSlot);
       if (valid.canHitHero) return `⚔️【${u.name}】準備出擊 — 敵方前排空虛，請點擊上方敵方國力條直接攻擊！`;
-      if (G.players[1 - viewIdx].board.some(eu => unitHasGuard(eu)) && !u.keywords.includes('SNIPE')) return `⚔️【${u.name}】準備出擊 — 🛡️ 敵方護衛武將正在保護相鄰友軍，請選擇合法攻擊目標！`;
+      if (G.players[1 - viewIdx].board.some(eu => unitHasGuard(eu)) && !unitHasSnipe(u)) return `⚔️【${u.name}】準備出擊 — 🛡️ 敵方護衛武將正在保護相鄰友軍，請選擇合法攻擊目標！`;
       return `⚔️【${u.name}】準備出擊 — 請點擊任意敵方存活武將發動攻擊！`;
     }
 
@@ -1605,34 +1737,27 @@
     const selectedCard = isMyTurn && UI.selectedHandUid !== null
       ? G.players[viewIdx].hand.find(c => c.uid === UI.selectedHandUid)
       : null;
+    const diffCfg = AI_DIFFICULTIES[getAIDifficulty(G, 1)] || AI_DIFFICULTIES.normal;
 
     return `
       <div class="flex-1 flex flex-col w-full">
         <header class="px-3 sm:px-4 py-2 bg-[#0d111a]/95 border-b border-amber-500/25 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-30">
           <div class="flex items-center gap-2 sm:gap-3">
             <span class="font-serif-tc font-bold text-base sm:text-lg text-amber-300">三國·謀定天下</span>
-            <span class="px-2 py-0.5 rounded bg-slate-800 text-xs text-slate-200 font-semibold">第 ${roundNum} 回合</span>
+            <span class="px-2 py-0.5 rounded bg-slate-800 text-xs text-slate-200 font-semibold">第 ${roundNum} 大回合</span>
+            ${G.mode === 'AI' ? `<span class="px-2 py-0.5 rounded bg-indigo-950/90 text-indigo-200 border border-indigo-500/40 text-xs font-bold">🧠 ${diffCfg.name}</span>` : ''}
             ${G.mode === 'ONLINE' ? `<span class="px-2 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 text-xs font-bold">🌐 房號 ${UI.onlineRoomCode}（${UI.onlineRole === 'HOST' ? '房主' : '客軍'}）</span>` : ''}
             <span class="hidden md:inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
-              v3.0 • 糧草上限 ${MAX_FOOD_CAP} + 糧倉 ${MAX_RESERVE_FOOD}
+              v3.1 • 糧草上限 ${MAX_FOOD_CAP} + 糧倉 ${MAX_RESERVE_FOOD}
             </span>
           </div>
           <div class="flex items-center gap-1.5 sm:gap-2">
-            <button type="button" data-action="toggle-log" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">
-              📜 戰報 (${G.log.length})
-            </button>
-            <button type="button" data-action="open-compendium" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">
-              📚 圖鑑
-            </button>
-            <button type="button" data-action="open-rules" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">
-              📖 規則
-            </button>
-            <button type="button" data-action="toggle-mute" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">
-              ${Sound.muted ? '🔇' : '🔊'}
-            </button>
-            <button type="button" data-action="back-lobby" class="px-2.5 py-1 rounded-lg bg-rose-950/70 hover:bg-rose-900 text-xs text-rose-200 border border-rose-700/60">
-              退出
-            </button>
+            <button type="button" data-action="open-guide" class="px-2.5 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-xs text-indigo-100 border border-indigo-500/50">🎓 教學/FAQ</button>
+            <button type="button" data-action="toggle-log" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">📜 戰報 (${G.log.length})</button>
+            <button type="button" data-action="open-compendium" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">📚 圖鑑</button>
+            <button type="button" data-action="open-rules" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">📖 規則</button>
+            <button type="button" data-action="toggle-mute" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700">${Sound.muted ? '🔇' : '🔊'}</button>
+            <button type="button" data-action="back-lobby" class="px-2.5 py-1 rounded-lg bg-rose-950/70 hover:bg-rose-900 text-xs text-rose-200 border border-rose-700/60">退出</button>
           </div>
         </header>
 
@@ -1645,30 +1770,25 @@
               <span class="text-xs sm:text-sm text-amber-100 font-medium">${getActionHintText()}</span>
               <div class="flex items-center gap-2 ml-auto">
                 ${selectedCard && selectedCard.type === 'TACTIC' && selectedCard.target === 'none' ? `
-                  <button type="button" data-action="cast-selected-tactic" class="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold">
-                    ✨ 確認施放【${selectedCard.name}】
-                  </button>
+                  <button type="button" data-action="cast-selected-tactic" class="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold">✨ 確認施放【${selectedCard.name}】</button>
                 ` : ''}
                 ${isMyTurn && UI.selectedAttackerSlot !== null && canUseActiveSkill(G, viewIdx, UI.selectedAttackerSlot) ? (() => {
                   const su = G.players[viewIdx].board[UI.selectedAttackerSlot];
+                  const usesNote = su.activeSkill.maxUses ? ` 剩${su.activeSkill.maxUses - (su.activeUsesTotal || 0)}次` : '';
                   return `
                     <button type="button" data-action="trigger-active-skill" class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white text-xs font-extrabold shadow">
-                      ✨ 發動【${su.activeSkill.name}】${su.activeSkill.cost > 0 ? `(${su.activeSkill.cost}糧)` : '(免費)'}
+                      ✨ 發動【${su.activeSkill.name}】${su.activeSkill.cost > 0 ? `(${su.activeSkill.cost}糧${usesNote})` : `(免費${usesNote})`}
                     </button>
                   `;
                 })() : ''}
                 ${(UI.selectedHandUid !== null || UI.selectedAttackerSlot !== null) ? `
-                  <button type="button" data-action="cancel-selection" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-semibold">
-                    取消選擇
-                  </button>
+                  <button type="button" data-action="cancel-selection" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-semibold">取消選擇</button>
                 ` : ''}
                 <button type="button" data-action="end-turn"
                   class="px-4 py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition ${isMyTurn
                     ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 shadow'
                     : 'bg-slate-800 text-slate-500 cursor-not-allowed'}"
-                  ${isMyTurn ? '' : 'disabled'}>
-                  結束回合 ⏭
-                </button>
+                  ${isMyTurn ? '' : 'disabled'}>結束回合 ⏭</button>
               </div>
             </div>
 
@@ -1711,24 +1831,43 @@
       const tacticEvts = (UI.G && UI.G.animEvents) ? UI.G.animEvents.filter(a => a.kind === 'tactic') : [];
       const skillEvts = (UI.G && UI.G.animEvents) ? UI.G.animEvents.filter(a => a.kind === 'skill') : [];
       app.innerHTML = renderGame();
-      if (tacticEvts.length > 0) {
-        showTacticShowcase(tacticEvts[tacticEvts.length - 1]);
-      }
-      if (skillEvts.length > 0) {
-        showSkillShowcase(skillEvts[skillEvts.length - 1]);
-      }
-      if (UI.G && UI.G.vfxEvents.length > 0) {
-        UI.G.vfxEvents = [];
-      }
-      if (UI.G && UI.G.animEvents && UI.G.animEvents.length > 0) {
-        UI.G.animEvents = [];
-      }
+      if (tacticEvts.length > 0) showTacticShowcase(tacticEvts[tacticEvts.length - 1]);
+      if (skillEvts.length > 0) showSkillShowcase(skillEvts[skillEvts.length - 1]);
+      if (UI.G && UI.G.vfxEvents.length > 0) UI.G.vfxEvents = [];
+      if (UI.G && UI.G.animEvents && UI.G.animEvents.length > 0) UI.G.animEvents = [];
     }
   }
 
   document.addEventListener('click', (e) => {
     if (e.target.hasAttribute('data-close-backdrop') || e.target.closest('[data-close-modal]')) {
       closeModal();
+      return;
+    }
+
+    const guideTabBtn = e.target.closest('[data-guide-tab]');
+    if (guideTabBtn) {
+      openGuideFaqModal(guideTabBtn.getAttribute('data-guide-tab'));
+      return;
+    }
+
+    const diffBtn = e.target.closest('[data-set-ai-diff]');
+    if (diffBtn) {
+      UI.aiDifficulty = diffBtn.getAttribute('data-set-ai-diff');
+      setAIDifficulty(UI.aiDifficulty);
+      render();
+      return;
+    }
+
+    const prEnemyCard = e.target.closest('[data-prompt-enemy-card]');
+    if (prEnemyCard && UI.G && UI.G.pendingPrompt) {
+      const cardUid = Number(prEnemyCard.getAttribute('data-prompt-enemy-card'));
+      if (UI.G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+        sendGuestAction('RESOLVE_PROMPT', { response: { cardUid } });
+        return;
+      }
+      resolvePendingPrompt(UI.G, getViewingPlayerIdx(), { cardUid });
+      syncOnlineStateAndRender();
+      scheduleAITurnIfNeeded();
       return;
     }
 
@@ -1860,6 +1999,7 @@
     const actBtn = e.target.closest('[data-action]');
     if (actBtn) {
       const action = actBtn.getAttribute('data-action');
+      if (action === 'open-guide') { openGuideFaqModal(); return; }
       if (action === 'open-rules') { openRulebookModal(); return; }
       if (action === 'open-compendium') { openCompendiumModal(); return; }
       if (action === 'toggle-mute') { Sound.muted = !Sound.muted; render(); return; }
@@ -1929,6 +2069,15 @@
         return;
       }
       if (action === 'toggle-log') { UI.showLogDrawer = !UI.showLogDrawer; render(); return; }
+      if (action === 'prompt-reveal-ok' && UI.G && UI.G.pendingPrompt) {
+        if (UI.G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+          sendGuestAction('RESOLVE_PROMPT', { response: {} });
+          return;
+        }
+        resolvePendingPrompt(UI.G, getViewingPlayerIdx(), {});
+        syncOnlineStateAndRender();
+        return;
+      }
       if (action === 'prompt-cancel' && UI.G && UI.G.pendingPrompt) {
         UI.promptSelected = new Set();
         if (UI.G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
@@ -2120,7 +2269,7 @@
           return;
         } else if (isProtectedByAdjacentGuard(G.players[1 - viewIdx].board, slot)) {
           Sound.playError();
-          showToast('🛡️ 相鄰守護原則：該敵方武將正受到相鄰「護衛」武將保護，無法直接普通攻擊！', 'error');
+          showToast('🛡️ 相鄰護衛原則：該敵方武將正受到相鄰「護衛」武將保護，無法直接普通攻擊！', 'error');
           return;
         }
       }
@@ -2158,7 +2307,7 @@
           syncOnlineStateAndRender();
         } else {
           Sound.playError();
-          showToast('敵方前排仍有武將駐守，無法直接攻擊敵方國力！', 'error');
+          showToast('無法直接攻擊敵方國力（敵方前排仍有武將，或鄧艾於登場回合無法直擊國力）！', 'error');
         }
       }
     }
@@ -2175,7 +2324,15 @@
     }
   });
 
-  global.addEventListener('load', () => {
-    render();
-  });
+  // 支援網址 ?room=XXXX 自動預填房號並切至線上好友模式
+  try {
+    const params = new URLSearchParams(location.search);
+    const room = params.get('room');
+    if (room) {
+      UI.lobbyMode = 'ONLINE';
+      UI.onlineInputCode = room.replace(/[^0-9]/g, '').slice(0, 6);
+    }
+  } catch (_) {}
+
+  render();
 })(window);

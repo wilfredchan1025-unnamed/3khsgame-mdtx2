@@ -18,7 +18,7 @@
     },
 
     // ==========================================
-    // 蜀 SHU (12 Generals + 4 Tactics = 16 cards)
+    // 蜀 SHU (12 Generals + 5 Tactics = 17 cards)
     // ==========================================
     shu_liaohua: {
       id: 'shu_liaohua', name: '廖化', type: 'GENERAL', faction: 'SHU', cost: 1, atk: 2, hp: 2, armor: 0,
@@ -26,14 +26,14 @@
       text: '【先鋒】登場：若相鄰格有友軍，自身 +1 攻。'
     },
     shu_guanping: {
-      id: 'shu_guanping', name: '關平', type: 'GENERAL', faction: 'SHU', cost: 2, atk: 2, hp: 3, armor: 1,
+      id: 'shu_guanping', name: '關平', type: 'GENERAL', faction: 'SHU', cost: 2, atk: 2, hp: 2, armor: 1,
       keywords: ['ARMOR', 'GUARD'], icon: '🛡️', skillName: '龍佑',
       text: '【龍佑】護衛相鄰友軍。'
     },
     shu_weiyan: {
       id: 'shu_weiyan', name: '魏延', type: 'GENERAL', faction: 'SHU', cost: 3, atk: 3, hp: 3, armor: 0,
-      keywords: ['KILL'], icon: '⚔️', skillName: '狂骨',
-      text: '【狂骨】斬殺：回復己方國力 2 點。'
+      keywords: [], icon: '⚔️', skillName: '狂骨',
+      text: '【狂骨】每當魏延造成傷害後（含防守反擊），回復自身 1 點生命（不超過上限）。'
     },
     shu_fazheng: {
       id: 'shu_fazheng', name: '法正', type: 'GENERAL', faction: 'SHU', cost: 3, atk: 2, hp: 4, armor: 0,
@@ -53,8 +53,8 @@
     shu_zhaoyun: {
       id: 'shu_zhaoyun', name: '趙雲', type: 'GENERAL', faction: 'SHU', cost: 4, atk: 3, hp: 4, armor: 1,
       keywords: ['COMBO', 'ARMOR'], icon: '🐉', skillName: '龍膽',
-      activeSkill: { name: '龍膽', cost: 1, desc: '本回合 +1 攻與 +1 臨時護甲' },
-      text: '【龍膽】主動(1糧)：本回合獲得 +1 攻與 +1 臨時護甲。'
+      activeSkill: { name: '龍膽', cost: 1, desc: '本回合與下個敵方回合 +1 攻與 +1 臨時護甲' },
+      text: '【龍膽】主動(1糧)：本回合與下個敵方回合獲得 +1 攻與 +1 臨時護甲。'
     },
     shu_zhangfei: {
       id: 'shu_zhangfei', name: '張飛', type: 'GENERAL', faction: 'SHU', cost: 4, atk: 4, hp: 4, armor: 0,
@@ -64,12 +64,12 @@
     shu_guanyu: {
       id: 'shu_guanyu', name: '關羽', type: 'GENERAL', faction: 'SHU', cost: 5, atk: 5, hp: 5, armor: 0,
       keywords: ['PIERCE', 'KILL'], icon: '🌙', skillName: '武聖',
-      text: '【武聖】破甲。斬殺：抽 1 張牌，並對敵方國力造成 2 點傷害。'
+      text: '【武聖】破甲。斬殺：抽 1 張牌，並對敵方國力造成 1 點傷害。'
     },
     shu_machao: {
       id: 'shu_machao', name: '馬超', type: 'GENERAL', faction: 'SHU', cost: 5, atk: 4, hp: 4, armor: 0,
-      keywords: ['RUSH', 'COMBO'], icon: '🐎', skillName: '鐵騎',
-      text: '【鐵騎】登場：本回合獲得 +1 攻擊力。'
+      keywords: ['RUSH', 'PIERCE'], icon: '🐎', skillName: '鐵騎',
+      text: '【鐵騎】突襲、破甲。攻擊護衛武將時，傷害 +1。'
     },
     shu_jiangwei: {
       id: 'shu_jiangwei', name: '姜維', type: 'GENERAL', faction: 'SHU', cost: 5, atk: 4, hp: 5, armor: 0,
@@ -80,7 +80,7 @@
       id: 'shu_zhugeliang', name: '諸葛亮', type: 'GENERAL', faction: 'SHU', cost: 6, atk: 3, hp: 6, armor: 0,
       keywords: [], icon: '🪶', skillName: '錦囊',
       activeSkill: { name: '錦囊', cost: 1, desc: '二選一：全友軍 +1 臨時護甲／抽 1 牌並存 1 糧倉' },
-      text: '【錦囊】登場抽 2 張牌。主動(1糧，二選一)：全友軍 +1 臨時護甲／抽 1 牌並存 1 糧倉。'
+      text: '【錦囊】登場抽 2 張牌。主動(1糧，二選一)：全友軍 +1 臨時護甲（1大回合）／抽 1 牌並存 1 糧倉。'
     },
     shu_muniuliuma: {
       id: 'shu_muniuliuma', name: '木牛流馬', type: 'TACTIC', faction: 'SHU', cost: 2, target: 'none', icon: '🐂',
@@ -94,8 +94,13 @@
     },
     shu_kongcheng: {
       id: 'shu_kongcheng', name: '空城計', type: 'TACTIC', faction: 'SHU', cost: 3, target: 'none', icon: '🏯',
-      text: '所有友方武將獲得 +2 臨時護甲（持續 2 回合），並抽 1 張牌。',
+      text: '所有友方武將獲得 +2 臨時護甲（持續 2 大回合），並抽 1 張牌。',
       flavor: '「西城樓上撫琴焚香，談笑退司馬十五萬大軍。」'
+    },
+    shu_jushui: {
+      id: 'shu_jushui', name: '據水斷橋', type: 'TACTIC', faction: 'SHU', cost: 3, target: 'ally_general', icon: '🌉',
+      text: '指定一名友方武將獲得「護衛」與 +2 臨時護甲（1大回合）；若該武將為「張飛」，額外對敵方最高攻武將造成 1 點傷害。',
+      flavor: '「張飛據水斷橋，橫矛立馬，曹軍無人敢近。」'
     },
     shu_beifa: {
       id: 'shu_beifa', name: '出師北伐', type: 'TACTIC', faction: 'SHU', cost: 4, target: 'enemy_general', icon: '📜',
@@ -104,28 +109,28 @@
     },
 
     // ==========================================
-    // 魏 WEI (13 Generals + 4 Tactics = 17 cards)
+    // 魏 WEI (13 Generals + 5 Tactics = 18 cards)
     // ==========================================
     wei_yuejin: {
       id: 'wei_yuejin', name: '樂進', type: 'GENERAL', faction: 'WEI', cost: 1, atk: 1, hp: 3, armor: 1,
-      keywords: ['ARMOR'], icon: '🛡️', skillName: '先登',
-      text: '【先登】每次主動攻擊敵方武將時，本回合 +1 攻。'
+      keywords: ['ARMOR'], icon: '🛡️', skillName: '驍果',
+      text: '【驍果】攻擊生命值不低於自身的敵方武將時，本回合 +1 攻；若目標為護衛武將，改為 +2 攻。'
     },
     wei_xuhuang: {
       id: 'wei_xuhuang', name: '徐晃', type: 'GENERAL', faction: 'WEI', cost: 2, atk: 2, hp: 3, armor: 0,
       keywords: [], icon: '🪓', skillName: '斷糧',
-      text: '【斷糧】登場：敵方最高攻武將 -1 攻（2回合），並扣除敵方 1 點糧倉。'
+      text: '【斷糧】登場：敵方最高攻武將 -1 攻（2大回合），並扣除敵方 1 點糧倉。'
     },
     wei_guojia: {
       id: 'wei_guojia', name: '郭嘉', type: 'GENERAL', faction: 'WEI', cost: 3, atk: 2, hp: 3, armor: 0,
       keywords: ['DEATHRATTLE'], icon: '🪶', skillName: '遺計',
-      text: '【遺計】陣亡：抽 2 張牌，並存入 1 點糧倉。'
+      text: '【遺計】陣亡：抽 1 張牌；若我方手牌少於敵方，改為抽 2 張牌。'
     },
     wei_caoren: {
       id: 'wei_caoren', name: '曹仁', type: 'GENERAL', faction: 'WEI', cost: 3, atk: 2, hp: 4, armor: 2,
       keywords: ['ARMOR', 'GUARD'], icon: '🏰', skillName: '據守',
-      activeSkill: { name: '據守', cost: 0, desc: '自身 -1 攻，自己與相鄰友軍 +2 臨時護甲' },
-      text: '【據守】主動(0糧)：自身 -1 攻（最低 0），自己及相鄰友軍 +2 臨時護甲（1回合）。'
+      activeSkill: { name: '據守', cost: 1, desc: '自身 -1 攻，自己與相鄰友軍 +1 臨時護甲（1大回合）' },
+      text: '【據守】主動(1糧)：自身 -1 攻（最低 0），自己與相鄰友軍 +1 臨時護甲（本回合與下個敵方回合）。'
     },
     wei_zhangliao: {
       id: 'wei_zhangliao', name: '張遼', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 3, hp: 4, armor: 0,
@@ -134,23 +139,23 @@
     },
     wei_xiahoudun: {
       id: 'wei_xiahoudun', name: '夏侯惇', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 4, hp: 4, armor: 1,
-      keywords: ['ARMOR', 'KILL'], icon: '👁️', skillName: '剛烈',
-      text: '【剛烈】斬殺：自身回復 2 點生命。'
+      keywords: ['ARMOR'], icon: '👁️', skillName: '剛烈',
+      text: '【剛烈】每當夏侯惇受到傷害後，本回合攻擊力 +2（每回合限 1 次）。'
     },
     wei_dianwei: {
-      id: 'wei_dianwei', name: '典韋', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 3, hp: 5, armor: 2,
+      id: 'wei_dianwei', name: '典韋', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 3, hp: 5, armor: 1,
       keywords: ['ARMOR', 'GUARD'], icon: '🔱', skillName: '惡來',
       text: '【惡來】每次受到傷害時，攻擊力 +1。'
     },
     wei_dengai: {
       id: 'wei_dengai', name: '鄧艾', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 3, hp: 3, armor: 0,
       keywords: ['RUSH'], icon: '🏔️', skillName: '急襲',
-      text: '【急襲】可無視敵方場上武將，直接攻擊敵方國力。'
+      text: '【急襲】可無視敵方場上武將直接攻擊敵方國力（登場當回合無法攻擊敵方國力）。'
     },
     wei_zhanghe: {
       id: 'wei_zhanghe', name: '張郃', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 3, hp: 4, armor: 0,
       keywords: [], icon: '🎯', skillName: '料敵',
-      text: '【料敵】登場：查看敵方最高費手牌，若為謀略牌則費用 +1，若為武將則 -1/-1。'
+      text: '【料敵】登場：查看敵方手牌並選擇其中 1 張；若為謀略牌，下回合費用 +1；若為武將牌，該武將下回合 -1/-1。'
     },
     wei_xunyou: {
       id: 'wei_xunyou', name: '荀攸', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 2, hp: 4, armor: 0,
@@ -164,9 +169,9 @@
     },
     wei_simayi: {
       id: 'wei_simayi', name: '司馬懿', type: 'GENERAL', faction: 'WEI', cost: 5, atk: 3, hp: 5, armor: 0,
-      keywords: [], icon: '🐺', skillName: '鷹視',
-      activeSkill: { name: '鷹視', cost: 1, desc: '敵方最高攻武將 -2 攻（1回合）' },
-      text: '【鷹視】登場：敵全體 1 傷並灼燒（2回合）。主動(1糧)：敵方最高攻武將 -2 攻（1回合）。'
+      keywords: [], icon: '🐺', skillName: '鷹視・狼顧',
+      activeSkill: { name: '狼顧', cost: 1, desc: '指定敵將 -1 攻且下回合無法用主動技（1大回合）' },
+      text: '【鷹視】登場：查看敵方手牌，若其中有謀略牌，抽 1 張牌。【狼顧】主動(1糧)：指定一名敵方武將，攻擊力 -1 且下回合無法使用主動技（1大回合）。'
     },
     wei_caocao: {
       id: 'wei_caocao', name: '曹操', type: 'GENERAL', faction: 'WEI', cost: 6, atk: 4, hp: 6, armor: 1,
@@ -180,12 +185,17 @@
     },
     wei_duanliang: {
       id: 'wei_duanliang', name: '斷糧奇兵', type: 'TACTIC', faction: 'WEI', cost: 2, target: 'none', icon: '🔥',
-      text: '掠奪敵方最多 2 點糧倉轉為己方臨時糧草，並使敵方最高攻武將 -1 攻（2回合）。',
+      text: '掠奪敵方最多 2 點糧倉轉為己方臨時糧草，並使敵方最高攻武將 -1 攻（2大回合）。',
       flavor: '「兵馬未動，糧草先行；斷其輜重，敵陣自潰。」'
+    },
+    wei_jianbi: {
+      id: 'wei_jianbi', name: '堅壁清野', type: 'TACTIC', faction: 'WEI', cost: 2, target: 'none', icon: '🧱',
+      text: '所有友方武將獲得 +1 臨時護甲（1大回合）；敵方下回合糧草收入 -1（最低 0，不影響糧草上限）。',
+      flavor: '「堅壁清野，使敵無所掠，糧盡自退。」'
     },
     wei_quhu: {
       id: 'wei_quhu', name: '驅虎吞狼', type: 'TACTIC', faction: 'WEI', cost: 3, target: 'enemy_general', icon: '🐯',
-      text: '指定一名敵方武將造成 3 點傷害，並使其攻擊力 -1（持續 2 回合）。',
+      text: '指定一名敵方武將造成 3 點傷害，並使其攻擊力 -1（持續 2 大回合）。',
       flavor: '「荀彧獻二虎競食、驅虎吞狼之計，令劉備呂布自相殘殺。」'
     },
     wei_guandu: {
@@ -195,12 +205,12 @@
     },
 
     // ==========================================
-    // 吳 WU (12 Generals + 4 Tactics = 16 cards)
+    // 吳 WU (12 Generals + 5 Tactics = 17 cards)
     // ==========================================
     wu_lingtong: {
-      id: 'wu_lingtong', name: '凌統', type: 'GENERAL', faction: 'WU', cost: 1, atk: 2, hp: 1, armor: 0,
-      keywords: ['COMBO'], icon: '🌊', skillName: '先登',
-      text: '【先登】若凌統是本場第一位登場的武將，獲得 +1/+0。'
+      id: 'wu_lingtong', name: '凌統', type: 'GENERAL', faction: 'WU', cost: 1, atk: 1, hp: 2, armor: 1,
+      keywords: ['ARMOR'], icon: '🌊', skillName: '死戰',
+      text: '【死戰】首次受到致命傷害時，保留 1 點生命並獲得 +1 攻擊力（每場遊戲一次）。'
     },
     wu_huanggai: {
       id: 'wu_huanggai', name: '黃蓋', type: 'GENERAL', faction: 'WU', cost: 2, atk: 3, hp: 3, armor: 0,
@@ -231,7 +241,7 @@
     wu_lumeng: {
       id: 'wu_lumeng', name: '呂蒙', type: 'GENERAL', faction: 'WU', cost: 4, atk: 3, hp: 4, armor: 1,
       keywords: ['ARMOR'], icon: '⛵', skillName: '攻心',
-      text: '【攻心】登場：移除指定敵方武將的技能。'
+      text: '【攻心】登場：指定一名敵方武將，其技能本回合無效，且攻擊力 -1（2大回合）。'
     },
     wu_sunce: {
       id: 'wu_sunce', name: '孫策', type: 'GENERAL', faction: 'WU', cost: 4, atk: 4, hp: 3, armor: 0,
@@ -255,7 +265,7 @@
       text: '【不屈】周泰的生命值不會低於 1（每場遊戲觸發一次）。'
     },
     wu_luxun: {
-      id: 'wu_luxun', name: '陸遜', type: 'GENERAL', faction: 'WU', cost: 6, atk: 4, hp: 5, armor: 1,
+      id: 'wu_luxun', name: '陸遜', type: 'GENERAL', faction: 'WU', cost: 6, atk: 4, hp: 4, armor: 1,
       keywords: ['ARMOR'], icon: '🔥', skillName: '連營',
       text: '【連營】回合結束：對敵全體造成 1 傷；若目標已灼燒則額外再造 1 傷。'
     },
@@ -269,6 +279,11 @@
       text: '指定一名敵方武將造成 2 點傷害並施加灼燒（持續 3 回合），抽 1 張牌。',
       flavor: '「龐統獻連環鐵索鎖戰船，為赤壁大火鋪下絕境。」'
     },
+    wu_dongfeng: {
+      id: 'wu_dongfeng', name: '東風助火', type: 'TACTIC', faction: 'WU', cost: 3, target: 'enemy_general', icon: '🌬️',
+      text: '指定一名敵方武將：若其已灼燒，造成 3 點傷害並刷新灼燒持續時間；若未灼燒，造成 1 點傷害並施加灼燒（1回合）。',
+      flavor: '「東風既起，火借風勢，赤壁一炬破曹軍。」'
+    },
     wu_huogong: {
       id: 'wu_huogong', name: '火燒赤壁', type: 'TACTIC', faction: 'WU', cost: 4, target: 'none', icon: '🔥',
       text: '對敵方所有武將造成 2 點傷害，並施加灼燒（每回合扣 1 血，持續 2 回合）。',
@@ -276,12 +291,12 @@
     },
     wu_jiangdong: {
       id: 'wu_jiangdong', name: '江東水師', type: 'TACTIC', faction: 'WU', cost: 4, target: 'none', icon: '⛵',
-      text: '對敵方國力造成 3 點傷害，並使所有友方武將獲得 +1 攻擊力（持續 2 回合）。',
+      text: '對敵方國力造成 3 點傷害，並使所有友方武將獲得 +1 攻擊力（持續 2 大回合）。',
       flavor: '「樓船千艘列江岸，江東精銳莫敢當。」'
     },
 
     // ==========================================
-    // 群 QUN (13 Generals + 3 Tactics = 16 cards)
+    // 群 QUN (13 Generals + 4 Tactics = 17 cards)
     // ==========================================
     qun_huaxiong: {
       id: 'qun_huaxiong', name: '華雄', type: 'GENERAL', faction: 'QUN', cost: 2, atk: 3, hp: 2, armor: 0,
@@ -291,8 +306,8 @@
     qun_diaochan: {
       id: 'qun_diaochan', name: '貂蟬', type: 'GENERAL', faction: 'QUN', cost: 3, atk: 1, hp: 3, armor: 0,
       keywords: [], icon: '🌸', skillName: '閉月・離間',
-      activeSkill: { name: '離間', cost: 1, desc: '敵方最高攻武將 -2 攻（1回合）' },
-      text: '【閉月】回合結束：國力 +2、相鄰友軍回 1 血。【離間】主動(1糧)：敵最高攻 -2 攻（1回合）。'
+      activeSkill: { name: '離間', cost: 1, maxUses: 2, desc: '敵方最高攻武將 -2 攻（1大回合，每場限 2 次）' },
+      text: '【閉月】回合結束：國力 +1、相鄰友軍回 1 血。【離間】主動(1糧，限用 2 次)：敵最高攻 -2 攻（1大回合）。'
     },
     qun_yanliang: {
       id: 'qun_yanliang', name: '顏良', type: 'GENERAL', faction: 'QUN', cost: 3, atk: 4, hp: 3, armor: 0,
@@ -312,7 +327,7 @@
     qun_jiaxu: {
       id: 'qun_jiaxu', name: '賈詡', type: 'GENERAL', faction: 'QUN', cost: 4, atk: 2, hp: 4, armor: 0,
       keywords: ['SHROUD'], icon: '☠️', skillName: '完殺・帷幕',
-      text: '【完殺】在場時雙方增益效果無效。【帷幕】不能成為謀略牌的目標。'
+      text: '【完殺】在場時敵方增益效果無效。【帷幕】不能成為謀略牌的目標。'
     },
     qun_zhangjiao: {
       id: 'qun_zhangjiao', name: '張角', type: 'GENERAL', faction: 'QUN', cost: 4, atk: 2, hp: 4, armor: 0,
@@ -322,7 +337,7 @@
     qun_mateng: {
       id: 'qun_mateng', name: '馬騰', type: 'GENERAL', faction: 'QUN', cost: 4, atk: 4, hp: 3, armor: 0,
       keywords: ['RUSH'], icon: '🐴', skillName: '鐵騎',
-      text: '【鐵騎】攻擊護衛武將時，傷害 +2。'
+      text: '【鐵騎】攻擊護衛武將時，傷害 +1。'
     },
     qun_zhangren: {
       id: 'qun_zhangren', name: '張任', type: 'GENERAL', faction: 'QUN', cost: 4, atk: 3, hp: 4, armor: 0,
@@ -332,12 +347,12 @@
     qun_yuanshu: {
       id: 'qun_yuanshu', name: '袁術', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 5, hp: 5, armor: 0,
       keywords: [], icon: '🏺', skillName: '稱帝・眾叛',
-      text: '【稱帝】登場：我方國力 -5，自身獲得 +3/+3 與護衛。【眾叛】每回合結束隨機棄 1 牌。'
+      text: '【稱帝】登場：自身獲得 +3/+3 與護衛。【眾叛】每回合結束：己方國力 -2。'
     },
     qun_yuanshao: {
       id: 'qun_yuanshao', name: '袁紹', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 4, hp: 5, armor: 1,
       keywords: ['ARMOR'], icon: '🚩', skillName: '亂擊',
-      text: '【亂擊】登場：對敵全體造成 1 傷，友方全體 +1 攻（持續 2 回合）。'
+      text: '【亂擊】登場：對敵全體造成 1 傷，友方全體 +1 攻（持續 2 大回合）。'
     },
     qun_dongzhuo: {
       id: 'qun_dongzhuo', name: '董卓', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 5, hp: 6, armor: 2,
@@ -347,7 +362,7 @@
     qun_lubu: {
       id: 'qun_lubu', name: '呂布', type: 'GENERAL', faction: 'QUN', cost: 7, atk: 6, hp: 6, armor: 0,
       keywords: ['COMBO', 'PIERCE', 'KILL'], icon: '🔱', skillName: '無雙',
-      text: '【無雙】破甲。斬殺：對敵方國力造成 3 點傷害。'
+      text: '【無雙】破甲。斬殺：對敵方國力造成 2 點傷害。'
     },
     qun_manli: {
       id: 'qun_manli', name: '鐵騎突襲', type: 'TACTIC', faction: 'QUN', cost: 2, target: 'enemy_general', icon: '🐎',
@@ -356,8 +371,13 @@
     },
     qun_wushuang: {
       id: 'qun_wushuang', name: '天下無雙', type: 'TACTIC', faction: 'QUN', cost: 3, target: 'ally_general', icon: '⚡',
-      text: '指定一名友方武將獲得 +3 攻擊力與 +1 臨時護甲（持續 1 回合）。',
+      text: '指定一名友方武將獲得 +3 攻擊力與 +1 臨時護甲（持續 1 大回合）。',
       flavor: '「虎牢關前獨戰三英，畫戟所指無人能攖其鋒。」'
+    },
+    qun_meirenji: {
+      id: 'qun_meirenji', name: '美人計', type: 'TACTIC', faction: 'QUN', cost: 3, target: 'enemy_general', icon: '🌺',
+      text: '指定一名敵方武將，攻擊力 -2（2大回合）；若其為敵方最高攻武將，改為 -3 攻（2大回合）。',
+      flavor: '「王允設連環美人計，呂布董卓相爭於鳳儀亭。」'
     },
     qun_huoshao: {
       id: 'qun_huoshao', name: '焚城掠地', type: 'TACTIC', faction: 'QUN', cost: 4, target: 'none', icon: '🔥',
@@ -366,7 +386,7 @@
     },
 
     // ==========================================
-    // 中立 NEUTRAL (6 Generals + 6 Tactics = 12 cards)
+    // 中立 NEUTRAL (6 Generals + 7 Tactics = 13 cards)
     // ==========================================
     neu_bubing: {
       id: 'neu_bubing', name: '精銳步卒', type: 'GENERAL', faction: 'NEU', cost: 1, atk: 1, hp: 2, armor: 1,
@@ -394,19 +414,19 @@
       text: '【鐵壁】重甲護衛相鄰友軍。'
     },
     neu_huatuo: {
-      id: 'neu_huatuo', name: '華佗', type: 'GENERAL', faction: 'NEU', cost: 3, atk: 1, hp: 4, armor: 0,
+      id: 'neu_huatuo', name: '華佗', type: 'GENERAL', faction: 'NEU', cost: 4, atk: 1, hp: 4, armor: 0,
       keywords: [], icon: '🌿', skillName: '青囊',
-      activeSkill: { name: '青囊', cost: 1, desc: '二選一：回復國力 3 點／全友軍回復 2 血' },
-      text: '【青囊】主動(1糧，二選一)：回復己方國力 3 點／回復所有友方武將 2 點生命。'
+      activeSkill: { name: '青囊', cost: 1, desc: '二選一：回復國力 2 點／全友軍回復 2 血（不超過上限）' },
+      text: '【青囊】主動(1糧，二選一)：回復己方國力 2 點／回復所有友方武將 2 點生命（回復生命，不超過生命上限）。'
     },
     neu_tuntian: {
       id: 'neu_tuntian', name: '屯田積糧', type: 'TACTIC', faction: 'NEU', cost: 1, target: 'none', icon: '🌾',
-      text: '抽 1 張牌，回復己方國力 2 點。',
+      text: '抽 1 張牌，回復己方國力 1 點。',
       flavor: '「棗祇、任峻行屯田之制，軍糧充盈而四方漸定。」'
     },
     neu_huanwei: {
       id: 'neu_huanwei', name: '移形換位', type: 'TACTIC', faction: 'NEU', cost: 1, target: 'ally_general', icon: '🔄',
-      text: '將指定友方武將與 3 號位互換（若已在 3 號位則與 2 號位互換），獲 +2 臨時護甲與護衛（1回合）。',
+      text: '將指定友方武將與 3 號位互換（若已在 3 號位則與 2 號位互換），獲 +2 臨時護甲與護衛（1大回合）。',
       flavor: '「陣勢隨敵而變，奇正相生若環之無端。」'
     },
     neu_anfuminxin: {
@@ -423,6 +443,11 @@
       id: 'neu_pojia', name: '破甲強弩', type: 'TACTIC', faction: 'NEU', cost: 2, target: 'enemy_general', icon: '🎯',
       text: '指定一名敵方武將，清除其當前護甲並造成 2 點傷害。',
       flavor: '「連弩穿鐵甲，百步破堅陣。」'
+    },
+    neu_shengdong: {
+      id: 'neu_shengdong', name: '聲東擊西', type: 'TACTIC', faction: 'NEU', cost: 2, target: 'ally_general', icon: '🧭',
+      text: '指定一名友方武將，本回合獲得「狙擊」；若其位於 2 號位或 4 號位，抽 1 張牌。',
+      flavor: '「聲言東擊，實則西取，敵不能測。」'
     },
     neu_jianyu: {
       id: 'neu_jianyu', name: '萬箭齊發', type: 'TACTIC', faction: 'NEU', cost: 3, target: 'none', icon: '🏹',
@@ -443,10 +468,10 @@
       'shu_guanyu', 'shu_jiangwei',
       'shu_machao', 'shu_zhugeliang',
       'shu_muniuliuma', 'shu_muniuliuma',
-      'shu_taoyuan', 'shu_taoyuan',
+      'shu_taoyuan', 'shu_jushui',
       'shu_kongcheng', 'shu_beifa',
       'neu_bubing', 'neu_bubing',
-      'neu_tuntian', 'neu_tuntian',
+      'neu_tuntian', 'neu_shengdong',
       'neu_pojia', 'neu_huanwei'
     ],
     WEI: [
@@ -460,9 +485,9 @@
       'wei_xuchu', 'wei_simayi',
       'wei_caocao', 'wei_caocao',
       'wei_xietianzi', 'wei_xietianzi',
-      'wei_duanliang', 'wei_duanliang',
+      'wei_duanliang', 'wei_jianbi',
       'wei_quhu', 'wei_quhu',
-      'wei_guandu', 'wei_guandu',
+      'wei_guandu', 'wei_jianbi',
       'neu_huatuo', 'neu_tuntian',
       'neu_pojia', 'neu_huanwei'
     ],
@@ -477,10 +502,10 @@
       'wu_zhoutai', 'wu_luxun',
       'wu_shensu', 'wu_shensu',
       'wu_lianhuan', 'wu_lianhuan',
-      'wu_huogong', 'wu_huogong',
-      'wu_jiangdong', 'wu_jiangdong',
+      'wu_dongfeng', 'wu_huogong',
+      'wu_huogong', 'wu_jiangdong',
       'neu_bubing', 'neu_tuntian',
-      'neu_tuntian', 'neu_anfuminxin',
+      'neu_shengdong', 'neu_anfuminxin',
       'neu_pojia', 'neu_jianyu'
     ],
     QUN: [
@@ -494,7 +519,7 @@
       'qun_yuanshu', 'qun_yuanshao',
       'qun_dongzhuo', 'qun_lubu',
       'qun_manli', 'qun_manli',
-      'qun_wushuang', 'qun_wushuang',
+      'qun_wushuang', 'qun_meirenji',
       'qun_huoshao', 'qun_huoshao',
       'neu_bubing', 'neu_chengong',
       'neu_dunbing', 'neu_tuntian',
@@ -575,6 +600,7 @@
     } catch (_) {}
   }
 
+  global.Sanguo = global.Sanguo || {};
   Object.assign(global.Sanguo, {
     CARD_DB,
     STARTER_DECKS,

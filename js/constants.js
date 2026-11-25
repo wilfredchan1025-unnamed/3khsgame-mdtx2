@@ -7,14 +7,14 @@
       color: '#991b1b', accent: '#f87171',
       badgeBg: 'bg-red-900/90 text-red-200 border-red-500/50',
       ring: 'border-red-500/60',
-      desc: '赤血忠義，擅長連擊斬殺、破甲突襲與相鄰協戰。'
+      desc: '赤血忠義，擅長破甲突襲、連擊斬殺與相鄰協戰。'
     },
     WEI: {
       id: 'WEI', name: '魏', title: '魏·霸府權謀',
       color: '#1e3a8a', accent: '#60a5fa',
       badgeBg: 'bg-blue-900/90 text-blue-200 border-blue-500/50',
       ring: 'border-blue-500/60',
-      desc: '深謀遠慮，擅長護衛護甲、沉默控場與斷糧權謀。'
+      desc: '深謀遠慮，擅長護衛護甲、窺探手牌與斷糧權謀。'
     },
     WU: {
       id: 'WU', name: '吳', title: '吳·江東水師',
@@ -28,7 +28,7 @@
       color: '#6b21a8', accent: '#c084fc',
       badgeBg: 'bg-purple-900/90 text-purple-200 border-purple-500/50',
       ring: 'border-purple-500/60',
-      desc: '豪強並起，擅長高攻爆發、毒計壓制與破盾伏擊。'
+      desc: '豪強並起，擅長高攻爆發、完殺壓制與破盾伏擊。'
     },
     NEU: {
       id: 'NEU', name: '中立', title: '中立',
@@ -43,7 +43,7 @@
   const BOARD_SIZE = 5;
   const SLOT_NAMES = ['1號位·左翼', '2號位·左輔', '3號位·中軍', '4號位·右輔', '5號位·右翼'];
   const MAX_HAND_SIZE = 8;
-  const MAX_FOOD_CAP = 7;
+  const MAX_FOOD_CAP = 8; // v3.1: 糧草上限提升為 8
   const MAX_RESERVE_FOOD = 3;
   const MAX_SUB_FACTION_CARDS = 10;
   const SUB_FACTION_MAX_COST = 4;
@@ -58,7 +58,7 @@
     return 4;
   }
 
-  // v3.0: Faction counter (+1 dmg) removed; kept as false for backwards compatibility
+  // v3.0+: Faction counter (+1 dmg) removed; kept as false for backwards compatibility
   function isCountering() {
     return false;
   }
