@@ -319,6 +319,14 @@
         }
         return actions;
       }
+      if (pr.kind === 'JIAXU_LUANWU') {
+        actions.push({ kind: 'PROMPT', payload: { mode: 'AOE' } });
+        const ranked = rankHandForDiscard(G, pIdx);
+        for (const c of ranked.slice(0, 2)) {
+          actions.push({ kind: 'PROMPT', payload: { mode: 'DISCARD', cardUid: c.uid } });
+        }
+        return actions;
+      }
       if (pr.kind === 'ZHANGZHAO_DISCARD') {
         const ranked = rankHandForDiscard(G, pIdx);
         actions.push({ kind: 'PROMPT', payload: { cardUid: null } });

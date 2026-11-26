@@ -83,3 +83,112 @@ html, body {
 ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.4); }
 ::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.35); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(212, 175, 55, 0.6); }
+
+/* ===== v3.4 水墨畫雙風格（深墨夜戰 / 宣紙青綠）與卡背樣式 ===== */
+body.theme-dark {
+  background-color: #0d1016;
+  background-image:
+    linear-gradient(180deg, rgba(11, 15, 24, 0.72) 0%, rgba(11, 15, 24, 0.84) 100%),
+    url('assets/lobby_dark.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  color: #f1ede4;
+}
+
+body.theme-light {
+  background-color: #efe5d2;
+  background-image:
+    linear-gradient(180deg, rgba(247, 240, 226, 0.58) 0%, rgba(238, 226, 204, 0.72) 100%),
+    url('assets/lobby_light.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  color: #1f242d;
+}
+
+.lobby-ink-hero {
+  background-size: cover;
+  background-position: center;
+}
+body.theme-dark .lobby-ink-hero {
+  background-image:
+    linear-gradient(180deg, rgba(13, 18, 30, 0.56) 0%, rgba(19, 24, 34, 0.90) 100%),
+    url('assets/lobby_dark.jpg');
+}
+body.theme-light .lobby-ink-hero {
+  background-image:
+    linear-gradient(180deg, rgba(248, 241, 227, 0.42) 0%, rgba(244, 234, 214, 0.88) 100%),
+    url('assets/lobby_light.jpg');
+}
+
+.battle-ink-bg {
+  background-size: cover;
+  background-position: center;
+  border-radius: 1rem;
+}
+body.theme-dark .battle-ink-bg {
+  background-image:
+    linear-gradient(180deg, rgba(10, 14, 22, 0.34) 0%, rgba(10, 14, 22, 0.44) 100%),
+    url('assets/board_dark.jpg');
+}
+body.theme-light .battle-ink-bg {
+  background-image:
+    linear-gradient(180deg, rgba(250, 244, 232, 0.22) 0%, rgba(242, 233, 214, 0.34) 100%),
+    url('assets/board_light.jpg');
+}
+
+.ink-card-back {
+  background-image: url('assets/card_back.jpg');
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(212, 175, 55, 0.65);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* 淺色宣紙主題適配：維持清晰對比與溫潤國風質感 */
+body.theme-light .ink-surface {
+  background-color: rgba(249, 243, 231, 0.90) !important;
+  border-color: rgba(161, 126, 62, 0.42) !important;
+  color: #1f242d !important;
+}
+body.theme-light .ink-surface-soft {
+  background-color: rgba(244, 235, 218, 0.84) !important;
+  border-color: rgba(161, 126, 62, 0.35) !important;
+  color: #252b36 !important;
+}
+body.theme-light .ink-header {
+  background-color: rgba(246, 238, 223, 0.94) !important;
+  border-color: rgba(161, 126, 62, 0.45) !important;
+  color: #1f242d !important;
+}
+body.theme-light .ink-title-text {
+  color: #7c4d12 !important;
+  background: none !important;
+  -webkit-text-fill-color: #7c4d12 !important;
+}
+body.theme-light .ink-subtext {
+  color: #4b5563 !important;
+}
+body.theme-light .ink-card-unit,
+body.theme-light .ink-card-hand {
+  background: linear-gradient(180deg, rgba(253, 249, 240, 0.96) 0%, rgba(241, 231, 212, 0.96) 100%) !important;
+  color: #1e2430 !important;
+  border-color: rgba(154, 120, 62, 0.55) !important;
+}
+body.theme-light .ink-card-unit .text-amber-50,
+body.theme-light .ink-card-hand .text-amber-50,
+body.theme-light .ink-surface .text-slate-100,
+body.theme-light .ink-surface .text-amber-100,
+body.theme-light .ink-surface .text-amber-200 {
+  color: #1f242d !important;
+}
+body.theme-light .ink-surface .text-slate-300,
+body.theme-light .ink-surface .text-slate-400 {
+  color: #475569 !important;
+}
+body.theme-light .ink-slot-empty {
+  background-color: rgba(249, 243, 231, 0.55) !important;
+  border-color: rgba(140, 110, 62, 0.45) !important;
+  color: #6b5a3e !important;
+}

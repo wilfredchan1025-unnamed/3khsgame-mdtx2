@@ -82,14 +82,8 @@
     return Boolean(unit.silenced || unit.effects.some(e => e.type === 'temp_silence'));
   }
 
-  // v3.1: 賈詡【完殺】改為僅阻止「敵方」增益效果
-  function isWanshaBlocking(G, targetOwner) {
-    if (!G || !G.players) return false;
-    const enemyIdx = 1 - targetOwner;
-    for (let s = 0; s < BOARD_SIZE; s++) {
-      const u = G.players[enemyIdx].board[s];
-      if (u && u.id === 'qun_jiaxu' && !isUnitSilenced(u) && u.hp > 0) return true;
-    }
+  // v3.4: 賈詡【完殺】改為登場指定驅散正向增益，移除舊版在場光環封鎖（保留函式介面以相容外部呼叫）
+  function isWanshaBlocking() {
     return false;
   }
 
@@ -233,46 +227,11 @@
     if (u.id === 'wu_sunquan') {
       return p.hand.length > 0;
     }
-    if (u.id === 'qun_zhangjiao') {
-      G.pendingPrompt = {
-        kind: 'TARGET_ENEMY',
-        owner: pIdx,
-        sourceName: u.name,
-        sourceIcon: u.icon,
-        skillName: '雷擊',
-        desc: '獻祭1名黃巾力士（或耗1糧倉），對指定敵將造成3傷並回自身1血：',
-        context: { type: 'ZHANGJIAO_LEIJI', sourceSlot: slotIdx, cost: 1 }
-      };
-      return true;
-    }
-
-    if (u.id === 'shu_liushan') {
-      G.pendingPrompt = {
-        kind: 'TARGET_ALLY',
-        owner: pIdx,
-        sourceName: u.name,
-        sourceIcon: u.icon,
-        skillName: '放權',
-        desc: '選擇一名友方武將本回合 +1 攻（諸葛亮/姜維額外抽1牌）：',
-        context: { type: 'LIUSHAN_FANGQUAN', sourceSlot: slotIdx }
-      };
-      return true;
-    }
-
-    if (u.id === 'wu_guyong') {
-      G.pendingPrompt = {
-        kind: 'GUYONG_DISCARD',
-        owner: pIdx,
-        sourceName: u.name,
-        sourceIcon: u.icon,
-        skillName: '慎行',
-        slotIdx
-      };
-      return true;
-    }
-
     if (u.id === 'wei_simayi') {
       if ((u.quanmou || 0) < 2) return false;
+    }
+    if (u.id === 'wu_zhouyu') {
+      if (!enemy.board.some(eu => eu !== null)) return false;
     }
     if (u.id === 'qun_zhangjiao') {
       if (!enemy.board.some(eu => eu !== null)) return false;
@@ -312,7 +271,10 @@
         graveyard: [],
         board: Array(BOARD_SIZE).fill(null),
         mulliganDone: false,
-        turnsTaken: 0
+        turnsTaken: 0,
+        defenseLineTriggered: false,
+        defenseLinePending: false,
+        playedHistory: []
       },
       {
         idx: 1,
@@ -331,7 +293,10 @@
         graveyard: [],
         board: Array(BOARD_SIZE).fill(null),
         mulliganDone: false,
-        turnsTaken: 0
+        turnsTaken: 0,
+        defenseLineTriggered: false,
+        defenseLinePending: false,
+        playedHistory: []
       }
     ];
 
@@ -640,6 +605,15 @@
       drawCard(G, pIdx, '抽牌階段');
     }
 
+    // v3.4: 國力防線補償（國力首次跌至 ≤20 後，於下個己方回合開始時額外抽 1 張牌並獲得 +1 臨時糧草）
+    if (p.defenseLinePending) {
+      p.defenseLinePending = false;
+      p.tempFood += 1;
+      drawCard(G, pIdx, '國力防線補償');
+      pushVfx(G, `hero-${pIdx}`, '🛡️防線+1牌+1糧', 'text-amber-300');
+      addLog(G, `🛡️【國力防線補償】${p.name} 觸發防線支援，額外抽 1 張牌並獲得 +1 臨時糧草！`);
+    }
+
     // v3.2: 取消後手急行軍，保留後手多 1 張初始手牌 + 第 1 回合正常抽牌
 
     checkVictory(G);
@@ -843,6 +817,12 @@
     p.hp -= dmg;
     pushVfx(G, `hero-${targetOwner}`, `-${dmg} 國力`, 'text-red-400');
     addLog(G, `${sourceLabel}對 ${p.name} 國力造成 ${dmg} 點傷害（剩餘國力 ${p.hp}）。`);
+    if (p.hp > 0 && p.hp <= 20 && !p.defenseLineTriggered) {
+      p.defenseLineTriggered = true;
+      p.defenseLinePending = true;
+      pushVfx(G, `hero-${targetOwner}`, '🛡️觸發國力防線', 'text-amber-300');
+      addLog(G, `🛡️【國力防線】${p.name} 國力首次跌至 ≤20，下個己方回合開始時將額外抽 1 張牌並獲得 +1 臨時糧草！`);
+    }
   }
 
   function healHero(G, targetOwner, amt, sourceLabel = '') {
@@ -1224,15 +1204,33 @@
           };
         }
         break;
-      case 'wu_zhouyu':
-        pushSkillAnim(G, ownerIdx, unit, '火攻', '烈焰焚陣！敵全體 1 傷並灼燒（2回合）！', 'burn');
+      case 'wu_zhouyu': {
+        const hasXiaoqiao = p.board.some(au => au && au.id === 'wu_xiaoqiao' && !isUnitSilenced(au));
+        pushSkillAnim(G, ownerIdx, unit, '英姿', hasXiaoqiao ? '敵全體 1 傷並灼燒（2回合），小喬在場額外抽 1 張牌！' : '敵全體 1 傷並灼燒（2回合）！', 'burn');
         for (let s = 0; s < BOARD_SIZE; s++) {
           if (enemy.board[s]) {
-            dealDamageToUnit(G, enemyIdx, s, 1, '【周瑜·火攻】');
+            dealDamageToUnit(G, enemyIdx, s, 1, '【周瑜·英姿】');
             if (enemy.board[s] && enemy.board[s].hp > 0) {
               applyEffect(G, enemyIdx, s, { type: 'burn', val: 1, turns: 2, label: '灼燒' });
             }
           }
+        }
+        if (hasXiaoqiao) {
+          drawCard(G, ownerIdx, '周瑜·英姿');
+        }
+        break;
+      }
+      case 'wu_luxun':
+        if (enemy.board.some(eu => eu !== null)) {
+          G.pendingPrompt = {
+            kind: 'TARGET_ENEMY',
+            owner: ownerIdx,
+            sourceName: unit.name,
+            sourceIcon: unit.icon,
+            skillName: '連營',
+            desc: '指定一名敵方武將造成 2 傷並灼燒（2回合），火勢向左右相鄰敵將蔓延（各受 1 傷並灼燒 2 回合）：',
+            context: { type: 'LUXUN_LIANYING', sourceSlot: slotIdx }
+          };
         }
         break;
       case 'qun_yanliang': {
@@ -1261,7 +1259,17 @@
         }
         break;
       case 'qun_jiaxu':
-        pushSkillAnim(G, ownerIdx, unit, '完殺・帷幕', '在場時敵方增益無效，且不受謀略指定！', 'poison');
+        if (enemy.board.some(eu => eu !== null)) {
+          G.pendingPrompt = {
+            kind: 'TARGET_ENEMY',
+            owner: ownerIdx,
+            sourceName: unit.name,
+            sourceIcon: unit.icon,
+            skillName: '完殺',
+            desc: '指定一名敵方武將，清除其所有正向增益（攻／甲／護衛增益）：',
+            context: { type: 'JIAXU_WANSHA', sourceSlot: slotIdx }
+          };
+        }
         break;
       case 'qun_zhangjiao': {
         const emptySlot = p.board.findIndex(u => u === null);
@@ -1433,6 +1441,121 @@
           { id: 'huatuo_units', label: '🌿 妙手仁心', desc: '消耗 1 糧，所有友方武將回復 2 點生命（不超過上限）' }
         ],
         context: { sourceSlot: slotIdx, cost: 1 }
+      };
+      return true;
+    }
+
+    if (u.id === 'qun_zhangjiao') {
+      if (!enemy.board.some(eu => eu !== null)) return false;
+      G.pendingPrompt = {
+        kind: 'TARGET_ENEMY',
+        owner: pIdx,
+        sourceName: u.name,
+        sourceIcon: u.icon,
+        skillName: '雷擊',
+        desc: '獻祭 1 名黃巾力士（或耗 1 糧倉），對指定敵將造成 3 傷並回自身 1 血：',
+        context: { type: 'ZHANGJIAO_LEIJI', sourceSlot: slotIdx, cost: 1 }
+      };
+      return true;
+    }
+
+    if (u.id === 'shu_liushan') {
+      G.pendingPrompt = {
+        kind: 'TARGET_ALLY',
+        owner: pIdx,
+        sourceName: u.name,
+        sourceIcon: u.icon,
+        skillName: '放權',
+        desc: '選擇一名友方武將本回合 +1 攻（若為諸葛亮或姜維額外抽 1 張牌）：',
+        context: { type: 'LIUSHAN_FANGQUAN', sourceSlot: slotIdx }
+      };
+      return true;
+    }
+
+    if (u.id === 'wu_guyong') {
+      G.pendingPrompt = {
+        kind: 'GUYONG_DISCARD',
+        owner: pIdx,
+        sourceName: u.name,
+        sourceIcon: u.icon,
+        skillName: '慎行',
+        slotIdx
+      };
+      return true;
+    }
+
+    if (u.id === 'wu_zhouyu') {
+      if (!enemy.board.some(eu => eu !== null)) return false;
+      G.pendingPrompt = {
+        kind: 'TARGET_ENEMY',
+        owner: pIdx,
+        sourceName: u.name,
+        sourceIcon: u.icon,
+        skillName: '火計',
+        desc: '指定一名敵將：若已灼燒，造成 2 傷並本回合 -1 攻；若未灼燒，施加灼燒（2回合）並抽 1 張牌：',
+        context: { type: 'ZHOUYU_HUOJI', sourceSlot: slotIdx, cost: 1 }
+      };
+      return true;
+    }
+
+    if (u.id === 'qun_jiaxu') {
+      spendFood(p, 1, 'TACTIC');
+      u.activeUsedThisTurn = true;
+      u.activeUsesTotal = (u.activeUsesTotal || 0) + 1;
+      G.actedThisTurn = true;
+      playSound(G, 'playTactic');
+      triggerSimayiFanshi(G, pIdx);
+
+      if (enemy.hand.length === 0) {
+        pushSkillAnim(G, pIdx, u, '亂武', '敵方無手牌！對敵全體造成 2 點傷害！', 'poison');
+        for (let s = 0; s < BOARD_SIZE; s++) {
+          if (enemy.board[s]) dealDamageToUnit(G, enemyIdx, s, 2, '【賈詡·亂武】');
+        }
+        cleanupDeadUnits(G);
+        checkVictory(G);
+        return true;
+      }
+
+      if (enemy.isAI) {
+        const enemyUnits = enemy.board.filter(Boolean);
+        const wouldKill = enemyUnits.some(eu => eu.hp <= 1);
+        if (enemyUnits.length >= 2 || wouldKill) {
+          // AI chooses to discard its least valuable hand card (highest cost or non-playable)
+          const sorted = enemy.hand.slice().sort((a, b) => b.cost - a.cost);
+          const pick = sorted[0];
+          const idx = enemy.hand.findIndex(c => c.uid === pick.uid);
+          if (idx !== -1) {
+            const [removed] = enemy.hand.splice(idx, 1);
+            enemy.graveyard.push(removed);
+            triggerGuzhengOnDiscard(G, enemyIdx);
+            pushSkillAnim(G, pIdx, u, '亂武', `敵方被迫棄置【${removed.name}】！`, 'poison');
+            addLog(G, `☠️【賈詡·亂武】${enemy.name} 選擇棄置 1 張手牌【${removed.name}】。`);
+          }
+        } else {
+          pushSkillAnim(G, pIdx, u, '亂武', '敵方選擇承受全體 1 傷且 -1 攻（1大回合）！', 'poison');
+          for (let s = 0; s < BOARD_SIZE; s++) {
+            if (enemy.board[s]) {
+              dealDamageToUnit(G, enemyIdx, s, 1, '【賈詡·亂武】');
+              if (enemy.board[s] && enemy.board[s].hp > 0) {
+                applyEffect(G, enemyIdx, s, { type: 'atk_buff', val: -1, halfTurns: 2, label: '-1攻' });
+              }
+            }
+          }
+          addLog(G, `☠️【賈詡·亂武】${enemy.name} 選擇保留手牌，敵全體受 1 傷且 -1 攻（1大回合）！`);
+        }
+        cleanupDeadUnits(G);
+        checkVictory(G);
+        return true;
+      }
+
+      G.pendingPrompt = {
+        kind: 'JIAXU_LUANWU',
+        owner: enemyIdx,
+        sourceName: u.name,
+        sourceIcon: u.icon,
+        skillName: '亂武',
+        desc: '敵方【賈詡】發動【亂武】！請二選一：點選棄置 1 張手牌，或承受己方全體武將 1 傷且 -1 攻（1大回合）。',
+        context: { attackerOwner: pIdx, sourceSlot: slotIdx }
       };
       return true;
     }
@@ -1651,6 +1774,33 @@
       return true;
     }
 
+    if (prompt.kind === 'JIAXU_LUANWU') {
+      const mode = response && response.mode;
+      G.pendingPrompt = null;
+      if (mode === 'DISCARD') {
+        const uid = response.cardUid;
+        const idx = p.hand.findIndex(c => c.uid === uid);
+        if (idx === -1) return false;
+        const [removed] = p.hand.splice(idx, 1);
+        p.graveyard.push(removed);
+        triggerGuzhengOnDiscard(G, pIdx);
+        addLog(G, `☠️【賈詡·亂武】${p.name} 選擇棄置手牌【${removed.name}】。`);
+      } else {
+        for (let s = 0; s < BOARD_SIZE; s++) {
+          if (p.board[s]) {
+            dealDamageToUnit(G, pIdx, s, 1, '【賈詡·亂武】');
+            if (p.board[s] && p.board[s].hp > 0) {
+              applyEffect(G, pIdx, s, { type: 'atk_buff', val: -1, halfTurns: 2, label: '-1攻' });
+            }
+          }
+        }
+        addLog(G, `☠️【賈詡·亂武】${p.name} 選擇保留手牌，全體武將受 1 傷且 -1 攻（1大回合）！`);
+      }
+      cleanupDeadUnits(G);
+      checkVictory(G);
+      return true;
+    }
+
     if (prompt.kind === 'TARGET_ALLY') {
       const slot = response && typeof response.slot === 'number' ? response.slot : -1;
       const au = p.board[slot];
@@ -1678,14 +1828,32 @@
     }
 
     if (prompt.kind === 'TARGET_ENEMY') {
+      if (response && response.cancel && (!enemy.board.some(eu => eu !== null) || prompt.context.cost)) {
+        G.pendingPrompt = null;
+        return true;
+      }
       const slot = response && typeof response.slot === 'number' ? response.slot : -1;
       const eu = enemy.board[slot];
       if (!eu) return false;
       const srcUnit = p.board[prompt.context.sourceSlot] || { name: prompt.sourceName, icon: prompt.sourceIcon, faction: p.faction, slot: prompt.context.sourceSlot };
 
       if (prompt.context.cost) {
-        if (getTotalFood(p, 'TACTIC') < prompt.context.cost) return false;
-        spendFood(p, prompt.context.cost, 'TACTIC');
+        if (prompt.context.type === 'ZHANGJIAO_LEIJI') {
+          const turbanSlot = p.board.findIndex(au => au && au.id === 'qun_yellow_turban');
+          if (turbanSlot !== -1) {
+            if (getTotalFood(p, 'TACTIC') < prompt.context.cost) return false;
+            p.board[turbanSlot] = null;
+            p.graveyard.push(createCardInstance('qun_yellow_turban'));
+            spendFood(p, prompt.context.cost, 'TACTIC');
+          } else {
+            if (p.reserveFood < 1 || (p.food + p.tempFood + (p.reserveFood - 1)) < prompt.context.cost) return false;
+            p.reserveFood -= 1;
+            spendFood(p, prompt.context.cost, 'TACTIC');
+          }
+        } else {
+          if (getTotalFood(p, 'TACTIC') < prompt.context.cost) return false;
+          spendFood(p, prompt.context.cost, 'TACTIC');
+        }
         if (p.board[prompt.context.sourceSlot]) {
           p.board[prompt.context.sourceSlot].activeUsedThisTurn = true;
           p.board[prompt.context.sourceSlot].activeUsesTotal = (p.board[prompt.context.sourceSlot].activeUsesTotal || 0) + 1;
@@ -1737,16 +1905,54 @@
           dealDamageToUnit(G, enemyIdx, slot, 2, '【徐盛·破軍】');
         }
       } else if (prompt.context.type === 'ZHANGJIAO_LEIJI') {
-        const turbanSlot = p.board.findIndex(au => au && au.id === 'qun_yellow_turban');
-        if (turbanSlot !== -1) {
-          p.board[turbanSlot] = null;
-          p.graveyard.push(createCardInstance('qun_yellow_turban'));
-        } else if (p.reserveFood >= 1) {
-          p.reserveFood -= 1;
-        }
+        pushSkillAnim(G, pIdx, srcUnit, '雷擊', `天雷轟擊【${eu.name}】造成 3 點傷害並回復自身 1 血！`, 'burn');
         dealDamageToUnit(G, enemyIdx, slot, 3, '【張角·雷擊】');
         if (p.board[prompt.context.sourceSlot]) {
           healUnit(G, pIdx, prompt.context.sourceSlot, 1, '【張角·雷擊】');
+        }
+      } else if (prompt.context.type === 'JIAXU_WANSHA') {
+        const baseDef = CARD_DB[eu.id];
+        eu.effects = eu.effects.filter(eff => !(
+          (eff.type === 'atk_buff' && eff.val > 0) ||
+          (eff.type === 'armor_buff' && eff.val > 0) ||
+          eff.type === 'guard_buff'
+        ));
+        if (baseDef && typeof baseDef.atk === 'number' && eu.atk > baseDef.atk) {
+          eu.atk = baseDef.atk;
+        }
+        if (baseDef && !(baseDef.keywords || []).includes('GUARD')) {
+          eu.keywords = eu.keywords.filter(kw => kw !== 'GUARD');
+        }
+        eu.armor = Math.min(eu.armor, eu.baseArmor);
+        pushSkillAnim(G, pIdx, srcUnit, '完殺', `清除敵方【${eu.name}】所有正向增益！`, 'poison');
+        pushVfx(G, `unit-${enemyIdx}-${slot}`, '☠️驅散增益', 'text-purple-300');
+        addLog(G, `☠️【賈詡·完殺】清除了敵方【${eu.name}】的所有正向增益（攻／甲／護衛增益）！`);
+      } else if (prompt.context.type === 'LUXUN_LIANYING') {
+        pushSkillAnim(G, pIdx, srcUnit, '連營', `火燒【${eu.name}】2傷並向左右相鄰蔓延！`, 'burn');
+        dealDamageToUnit(G, enemyIdx, slot, 2, '【陸遜·連營】');
+        if (enemy.board[slot] && enemy.board[slot].hp > 0) {
+          applyEffect(G, enemyIdx, slot, { type: 'burn', val: 1, turns: 2, label: '灼燒' });
+        }
+        for (const adj of [slot - 1, slot + 1]) {
+          if (adj >= 0 && adj < BOARD_SIZE && enemy.board[adj]) {
+            dealDamageToUnit(G, enemyIdx, adj, 1, '【陸遜·連營蔓延】');
+            if (enemy.board[adj] && enemy.board[adj].hp > 0) {
+              applyEffect(G, enemyIdx, adj, { type: 'burn', val: 1, turns: 2, label: '灼燒' });
+            }
+          }
+        }
+      } else if (prompt.context.type === 'ZHOUYU_HUOJI') {
+        const hasBurn = eu.effects.some(e => e.type === 'burn');
+        if (hasBurn) {
+          pushSkillAnim(G, pIdx, srcUnit, '火計', `引爆【${eu.name}】灼燒！造成 2 傷並本回合 -1 攻！`, 'burn');
+          dealDamageToUnit(G, enemyIdx, slot, 2, '【周瑜·火計】');
+          if (enemy.board[slot] && enemy.board[slot].hp > 0) {
+            applyEffect(G, enemyIdx, slot, { type: 'atk_buff', val: -1, halfTurns: 1, label: '-1攻' });
+          }
+        } else {
+          pushSkillAnim(G, pIdx, srcUnit, '火計', `對【${eu.name}】施加灼燒（2回合）並抽 1 張牌！`, 'burn');
+          applyEffect(G, enemyIdx, slot, { type: 'burn', val: 1, turns: 2, label: '灼燒' });
+          drawCard(G, pIdx, '周瑜·火計');
         }
       }
       cleanupDeadUnits(G);
@@ -1870,6 +2076,9 @@
     G.actedThisTurn = true;
     playSound(G, 'playDeploy');
 
+    if (Array.isArray(p.playedHistory)) {
+      p.playedHistory.push({ id: card.id, name: card.name, faction: card.faction, type: 'GENERAL', cost: card.cost, icon: card.icon, round: Math.max(1, Math.ceil(G.turnNumber / 2)), turn: G.turnNumber });
+    }
     addLog(G, `${p.name} 消耗 ${card.cost} 糧草，將【${unit.name}】部署於 ${SLOT_NAMES[slotIdx]}（${unit.isPrep ? '整備中' : '突襲就緒'}）。`);
     triggerOnPlay(G, pIdx, slotIdx, unit);
     triggerJianyingOnCardPlay(G, pIdx);
@@ -1913,7 +2122,10 @@
       targetSlot,
       card: { id: card.id, name: card.name, faction: card.faction, cost: card.cost, icon: card.icon, text: card.text, flavor: card.flavor || '', target: card.target }
     });
-    addLog(G, `${p.name} 消耗 ${card.cost} 糧草打出謀略【${card.name}】！`);
+    if (Array.isArray(p.playedHistory)) {
+      p.playedHistory.push({ id: card.id, name: card.name, faction: card.faction, type: 'TACTIC', cost: effCost, icon: card.icon, round: Math.max(1, Math.ceil(G.turnNumber / 2)), turn: G.turnNumber });
+    }
+    addLog(G, `${p.name} 消耗 ${effCost} 糧草打出謀略【${card.name}】！`);
 
     // 張紘【文采】：每當我方打出謀略牌時，張紘獲得 +1/+1
     for (let s = 0; s < BOARD_SIZE; s++) {
@@ -2483,13 +2695,17 @@
       const u = p.board[s];
       if (!u || isUnitSilenced(u)) continue;
       if (u.id === 'wu_luxun') {
-        pushSkillAnim(G, pIdx, u, '連營', '對敵全體造成 1 傷（已灼燒者額外 +1 傷）！', 'burn');
+        const burningSlots = [];
         for (let k = 0; k < BOARD_SIZE; k++) {
           const eu = enemy.board[k];
-          if (eu) {
-            const hasBurn = eu.effects.some(e => e.type === 'burn');
-            dealDamageToUnit(G, enemyIdx, k, hasBurn ? 2 : 1, '【陸遜·連營】');
+          if (eu && eu.effects.some(e => e.type === 'burn')) burningSlots.push(k);
+        }
+        if (burningSlots.length >= 2) {
+          pushSkillAnim(G, pIdx, u, '度勢', `敵方有 ${burningSlots.length} 名灼燒武將！所有灼燒敵將受 1 傷，並對敵國力造 2 傷！`, 'burn');
+          for (const k of burningSlots) {
+            if (enemy.board[k]) dealDamageToUnit(G, enemyIdx, k, 1, '【陸遜·度勢】');
           }
+          dealDamageToHero(G, enemyIdx, 2, '【陸遜·度勢】');
         }
       } else if (u.id === 'qun_diaochan') {
         // v3.1: 閉月國力改為 +1

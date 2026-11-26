@@ -174,7 +174,7 @@
       text: '【裸衣】登場可選自損 2 生命換 +2 攻。【虎痴】攻擊時無視護衛。'
     },
     wei_simayi: {
-      id: 'wei_simayi', name: '司馬懿', type: 'GENERAL', faction: 'WEI', cost: 5, atk: 3, hp: 5, armor: 1,
+      id: 'wei_simayi', name: '司馬懿', type: 'GENERAL', faction: 'WEI', cost: 5, atk: 3, hp: 4, armor: 1,
       keywords: ['ARMOR', 'SHROUD'], icon: '🐺', skillName: '隱忍・反噬',
       activeSkill: { name: '反噬', cost: 1, maxUses: 1, desc: '需 ≥2 層權謀（限1次）：消耗全部權謀，對敵全體造成層數點傷害，自身永久 +2/+2' },
       text: '【隱忍】帷幕。登場：存 1 點糧倉，敵全體本回合與下個敵方回合 -1 攻。【反噬】敵方打謀略牌或用主動技時，獲 1 層權謀（上限3，用主動技後失效）並打敵國力 1 傷。主動(1糧，需≥2層，限1次)：耗全部權謀對敵全體造層數點傷並自身永久 +2/+2。'
@@ -260,9 +260,10 @@
       text: '【激昂】斬殺：自身獲得 +1/+1。'
     },
     wu_zhouyu: {
-      id: 'wu_zhouyu', name: '周瑜', type: 'GENERAL', faction: 'WU', cost: 5, atk: 3, hp: 5, armor: 0,
-      keywords: [], icon: '🏮', skillName: '火攻',
-      text: '【火攻】登場：對敵全體造成 1 傷並施加灼燒（每回合扣 1 血，持續 2 回合）。'
+      id: 'wu_zhouyu', name: '周瑜', type: 'GENERAL', faction: 'WU', cost: 5, atk: 3, hp: 4, armor: 1,
+      keywords: ['ARMOR'], icon: '🔥', skillName: '英姿・火計',
+      activeSkill: { name: '火計', cost: 1, desc: '指定敵將：已灼燒造2傷並本回合-1攻；未灼燒施灼燒(2回合)並抽1牌' },
+      text: '【英姿】登場：對敵全體造成 1 傷並施加灼燒（2回合）；若場上有「小喬」，額外抽 1 張牌。【火計】主動(1糧，每回合限1次)：指定一名敵將，若其已灼燒，造成 2 傷並使其本回合 -1 攻；若未灼燒，施加灼燒（2回合）並抽 1 張牌。'
     },
     wu_sunquan: {
       id: 'wu_sunquan', name: '孫權', type: 'GENERAL', faction: 'WU', cost: 5, atk: 3, hp: 5, armor: 1,
@@ -276,9 +277,9 @@
       text: '【不屈】周泰的生命值不會低於 1（每場遊戲最多觸發 2 次）。'
     },
     wu_luxun: {
-      id: 'wu_luxun', name: '陸遜', type: 'GENERAL', faction: 'WU', cost: 6, atk: 4, hp: 4, armor: 1,
-      keywords: ['ARMOR'], icon: '🔥', skillName: '連營',
-      text: '【連營】回合結束：對敵全體造成 1 傷；若目標已灼燒則額外再造 1 傷。'
+      id: 'wu_luxun', name: '陸遜', type: 'GENERAL', faction: 'WU', cost: 6, atk: 3, hp: 5, armor: 1,
+      keywords: ['ARMOR', 'SHROUD'], icon: '🏮', skillName: '謙遜・連營・度勢',
+      text: '【謙遜】帷幕。【連營】登場：指定一名敵方武將造成 2 傷並施加灼燒（2回合），火勢向其左右相鄰敵將蔓延（各受 1 傷並灼燒 2 回合）。【度勢】回合結束：若敵方場上有 ≥ 2 名灼燒武將，對所有灼燒敵將造成 1 傷，並對敵方國力造成 2 點傷害。'
     },
     wu_kurouji: {
       id: 'wu_kurouji', name: '苦肉計', type: 'TACTIC', faction: 'WU', cost: 1, target: 'ally_general', icon: '🩸',
@@ -342,8 +343,9 @@
     },
     qun_jiaxu: {
       id: 'qun_jiaxu', name: '賈詡', type: 'GENERAL', faction: 'QUN', cost: 4, atk: 2, hp: 4, armor: 0,
-      keywords: ['SHROUD'], icon: '☠️', skillName: '完殺・帷幕',
-      text: '【完殺】在場時敵方增益效果無效。【帷幕】不能成為謀略牌的目標。'
+      keywords: ['SHROUD'], icon: '☠️', skillName: '完殺・亂武',
+      activeSkill: { name: '亂武', cost: 1, maxUses: 1, desc: '迫使敵方棄1張手牌，或敵全體受1傷且-1攻（1大回合）；若無手牌則敵全體2傷' },
+      text: '【完殺】帷幕。登場：指定一名敵將清除其所有正向增益（攻／甲／護衛增益）。【亂武】主動(1糧，每場限1次)：迫使敵方二選一——棄置 1 張手牌，或使其全體武將受 1 傷且 -1 攻（1大回合）；若敵方無手牌，改為對敵全體造成 2 傷。'
     },
     qun_zhangjiao: {
       id: 'qun_zhangjiao', name: '張角', type: 'GENERAL', faction: 'QUN', cost: 4, atk: 2, hp: 4, armor: 0,
@@ -372,7 +374,7 @@
       text: '【亂擊】登場：對敵全體造成 1 傷，友方全體 +1 攻（持續 2 大回合）。'
     },
     qun_dongzhuo: {
-      id: 'qun_dongzhuo', name: '董卓', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 5, hp: 6, armor: 1,
+      id: 'qun_dongzhuo', name: '董卓', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 4, hp: 6, armor: 1,
       keywords: ['ARMOR'], icon: '👹', skillName: '暴政',
       text: '【暴政】登場：己方國力 -2。'
     },
@@ -710,8 +712,146 @@
     }
   } catch (_) {}
 
-  const MAX_SAVED_DECK_SLOTS = 3;
-  const savedDeckSlots = [null, null, null];
+  const RECOMMENDED_DECKS = {
+    SHU: {
+      id: 'rec_shu',
+      name: '神速桃園・連擊中速',
+      faction: 'SHU',
+      subFaction: 'WU',
+      desc: '外掛吳國兵貴神速與太史慈，搭配關羽／趙雲高爆發破防與劉備鋪場壓制。',
+      cards: [
+        'shu_liaohua', 'shu_liaohua',
+        'shu_guanping', 'shu_guanping',
+        'shu_fazheng', 'shu_fazheng',
+        'shu_wangping', 'shu_wangping',
+        'shu_huangzhong', 'shu_huangzhong',
+        'shu_zhaoyun', 'shu_zhaoyun',
+        'shu_zhangfei', 'shu_zhangfei',
+        'shu_guanyu', 'shu_guanyu',
+        'shu_machao',
+        'shu_zhugeliang',
+        'shu_liubei',
+        'shu_muniuliuma', 'shu_muniuliuma',
+        'shu_taoyuan',
+        'shu_beifa', 'shu_beifa',
+        'wu_lingtong', 'wu_lingtong',
+        'wu_taishici', 'wu_taishici',
+        'wu_shensu', 'wu_shensu'
+      ]
+    },
+    WEI: {
+      id: 'rec_wei',
+      name: '霸府權謀・蓄糧魏武',
+      faction: 'WEI',
+      subFaction: 'SHU',
+      desc: '外掛蜀國木牛流馬與法正，速養鍾會並以減攻與謀略連發觸發曹操【魏武】。',
+      cards: [
+        'wei_yuejin',
+        'wei_xuhuang', 'wei_xuhuang',
+        'wei_yujin', 'wei_yujin',
+        'wei_lidian', 'wei_lidian',
+        'wei_guojia', 'wei_guojia',
+        'wei_zhonghui', 'wei_zhonghui',
+        'wei_xiahouyuan', 'wei_xiahouyuan',
+        'wei_xunyou', 'wei_xunyou',
+        'wei_xiahoudun',
+        'wei_simayi', 'wei_simayi',
+        'wei_caocao', 'wei_caocao',
+        'wei_xietianzi', 'wei_xietianzi',
+        'wei_duanliang',
+        'wei_quhu', 'wei_quhu',
+        'shu_muniuliuma', 'shu_muniuliuma',
+        'shu_fazheng', 'shu_fazheng',
+        'shu_zhangfei'
+      ]
+    },
+    WU: {
+      id: 'rec_wu',
+      name: '江東熾焰・制衡火攻',
+      faction: 'WU',
+      subFaction: 'QUN',
+      desc: '孫權制衡維持手牌優勢護航徐盛，周瑜與陸遜灼燒連動收割，外掛鐵騎突襲點解。',
+      cards: [
+        'wu_lingtong', 'wu_lingtong',
+        'wu_huanggai', 'wu_huanggai',
+        'wu_dingfeng', 'wu_dingfeng',
+        'wu_ganning', 'wu_ganning',
+        'wu_taishici', 'wu_taishici',
+        'wu_zhanghong', 'wu_zhanghong',
+        'wu_sunce', 'wu_sunce',
+        'wu_xusheng', 'wu_xusheng',
+        'wu_zhouyu', 'wu_zhouyu',
+        'wu_sunquan', 'wu_sunquan',
+        'wu_zhoutai',
+        'wu_luxun',
+        'wu_shensu', 'wu_shensu',
+        'wu_lianhuan', 'wu_lianhuan',
+        'wu_huogong', 'wu_huogong',
+        'qun_manli', 'qun_manli'
+      ]
+    },
+    QUN: {
+      id: 'rec_qun',
+      name: '天下無雙・漸營突襲',
+      faction: 'QUN',
+      subFaction: 'WU',
+      desc: '沮授低費連打補牌回糧，顏良文醜與袁術搶佔中盤，高順＋呂布＋兵貴神速收盤。',
+      cards: [
+        'qun_tianfeng', 'qun_tianfeng',
+        'qun_huaxiong', 'qun_huaxiong',
+        'qun_yanliang', 'qun_yanliang',
+        'qun_wenchou', 'qun_wenchou',
+        'qun_jushou', 'qun_jushou',
+        'qun_gaoshun', 'qun_gaoshun',
+        'qun_mateng', 'qun_mateng',
+        'qun_yuanshu', 'qun_yuanshu',
+        'qun_yuanshao', 'qun_yuanshao',
+        'qun_lubu', 'qun_lubu',
+        'qun_manli', 'qun_manli',
+        'qun_huoshao', 'qun_huoshao',
+        'wu_lingtong', 'wu_lingtong',
+        'wu_taishici', 'wu_taishici',
+        'wu_shensu', 'wu_shensu'
+      ]
+    }
+  };
+
+  function buildRandomLegalDeck(mainFaction) {
+    const subCandidates = FACTION_LIST.filter(f => f !== mainFaction);
+    const subFaction = Math.random() < 0.72
+      ? subCandidates[Math.floor(Math.random() * subCandidates.length)]
+      : null;
+
+    const mainAndNeuPool = Object.values(CARD_DB).filter(
+      c => !c.token && (c.faction === mainFaction || c.faction === 'NEU')
+    );
+    const subPool = subFaction
+      ? Object.values(CARD_DB).filter(
+          c => !c.token && c.faction === subFaction && c.cost <= SUB_FACTION_MAX_COST
+        )
+      : [];
+
+    const deck = [];
+    const counts = {};
+    let subCount = 0;
+    let guard = 0;
+
+    while (deck.length < DECK_SIZE && guard < 2000) {
+      guard += 1;
+      const useSub = subPool.length > 0 && subCount < MAX_SUB_FACTION_CARDS && Math.random() < 0.28;
+      const pool = useSub ? subPool : mainAndNeuPool;
+      const card = pool[Math.floor(Math.random() * pool.length)];
+      if (!card || (counts[card.id] || 0) >= MAX_COPIES) continue;
+
+      deck.push(card.id);
+      counts[card.id] = (counts[card.id] || 0) + 1;
+      if (useSub) subCount += 1;
+    }
+    return deck.length === DECK_SIZE ? deck : STARTER_DECKS[mainFaction].slice();
+  }
+
+  const MAX_SAVED_DECK_SLOTS = 4;
+  const savedDeckSlots = [null, null, null, null];
   try {
     const rawSlots = global.localStorage && global.localStorage.getItem('sanguo_saved_decks_v32');
     if (rawSlots) {
@@ -784,6 +924,8 @@
   Object.assign(global.Sanguo, {
     CARD_DB,
     STARTER_DECKS,
+    RECOMMENDED_DECKS,
+    buildRandomLegalDeck,
     customDecks,
     MAX_SAVED_DECK_SLOTS,
     savedDeckSlots,
