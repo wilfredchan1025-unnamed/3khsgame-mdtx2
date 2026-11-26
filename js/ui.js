@@ -181,6 +181,116 @@
       }
     `;
     document.head.appendChild(style);
+
+    if (!document.getElementById('sanguo-v34-theme')) {
+      const tStyle = document.createElement('style');
+      tStyle.id = 'sanguo-v34-theme';
+      tStyle.textContent = `
+        body.theme-dark #app,
+        body.theme-light #app,
+        body.theme-dark .bg-battlefield,
+        body.theme-light .bg-battlefield,
+        body.theme-dark.bg-battlefield,
+        body.theme-light.bg-battlefield {
+          background: transparent !important;
+          background-image: none !important;
+        }
+        body.theme-dark {
+          background-color: #0d1016 !important;
+          background-image:
+            linear-gradient(180deg, rgba(10, 14, 24, 0.28) 0%, rgba(10, 14, 24, 0.46) 100%),
+            url('./assets/lobby_dark.jpg') !important;
+          background-size: cover !important;
+          background-position: center !important;
+          background-attachment: fixed !important;
+          color: #f1ede4;
+        }
+        body.theme-light {
+          background-color: #efe5d2 !important;
+          background-image:
+            linear-gradient(180deg, rgba(248, 241, 227, 0.22) 0%, rgba(238, 226, 204, 0.36) 100%),
+            url('./assets/lobby_light.jpg') !important;
+          background-size: cover !important;
+          background-position: center !important;
+          background-attachment: fixed !important;
+          color: #1f242d !important;
+        }
+        .lobby-ink-hero {
+          background-size: cover !important;
+          background-position: center !important;
+        }
+        body.theme-dark .lobby-ink-hero {
+          background-image:
+            linear-gradient(180deg, rgba(13, 18, 30, 0.24) 0%, rgba(19, 24, 34, 0.70) 100%),
+            url('./assets/lobby_dark.jpg') !important;
+        }
+        body.theme-light .lobby-ink-hero {
+          background-image:
+            linear-gradient(180deg, rgba(248, 241, 227, 0.20) 0%, rgba(244, 234, 214, 0.70) 100%),
+            url('./assets/lobby_light.jpg') !important;
+        }
+        .battle-ink-bg {
+          background-size: cover !important;
+          background-position: center !important;
+          border-radius: 1rem;
+        }
+        body.theme-dark .battle-ink-bg {
+          background-image:
+            linear-gradient(180deg, rgba(10, 14, 22, 0.14) 0%, rgba(10, 14, 22, 0.24) 100%),
+            url('./assets/board_dark.jpg') !important;
+        }
+        body.theme-light .battle-ink-bg {
+          background-image:
+            linear-gradient(180deg, rgba(250, 244, 232, 0.10) 0%, rgba(242, 233, 214, 0.20) 100%),
+            url('./assets/board_light.jpg') !important;
+        }
+        .ink-card-back {
+          background-image: url('./assets/card_back.jpg') !important;
+          background-size: cover !important;
+          background-position: center !important;
+          border: 1px solid rgba(212, 175, 55, 0.65);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+        }
+        body.theme-light .ink-surface {
+          background-color: rgba(249, 243, 231, 0.88) !important;
+          border-color: rgba(161, 126, 62, 0.45) !important;
+          color: #1f242d !important;
+        }
+        body.theme-light .ink-surface-soft {
+          background-color: rgba(244, 235, 218, 0.84) !important;
+          border-color: rgba(161, 126, 62, 0.35) !important;
+          color: #252b36 !important;
+        }
+        body.theme-light .ink-header {
+          background-color: rgba(246, 238, 223, 0.92) !important;
+          border-color: rgba(161, 126, 62, 0.45) !important;
+          color: #1f242d !important;
+        }
+        body.theme-light .ink-title-text {
+          color: #7c4d12 !important;
+          background: none !important;
+          -webkit-text-fill-color: #7c4d12 !important;
+        }
+        body.theme-light .ink-card-unit,
+        body.theme-light .ink-card-hand {
+          background: linear-gradient(180deg, rgba(253, 249, 240, 0.96) 0%, rgba(241, 231, 212, 0.96) 100%) !important;
+          color: #1e2430 !important;
+          border-color: rgba(154, 120, 62, 0.55) !important;
+        }
+        body.theme-light .ink-card-unit .text-amber-50,
+        body.theme-light .ink-card-hand .text-amber-50,
+        body.theme-light .ink-surface .text-slate-100,
+        body.theme-light .ink-surface .text-amber-100,
+        body.theme-light .ink-surface .text-amber-200 {
+          color: #1f242d !important;
+        }
+        body.theme-light .ink-surface .text-slate-300,
+        body.theme-light .ink-surface .text-slate-400 {
+          color: #475569 !important;
+        }
+      `;
+      document.head.appendChild(tStyle);
+    }
   }
 
   function showTacticShowcase(evt) {
