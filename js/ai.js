@@ -279,6 +279,19 @@
         }
         return actions;
       }
+      if (pr.kind === 'TARGET_ALLY') {
+        for (let s = 0; s < BOARD_SIZE; s++) {
+          if (p.board[s]) actions.push({ kind: 'PROMPT', payload: { slot: s } });
+        }
+        return actions;
+      }
+      if (pr.kind === 'GUYONG_DISCARD') {
+        const ranked = rankHandForDiscard(G, pIdx);
+        for (const c of ranked.slice(0, 3)) {
+          actions.push({ kind: 'PROMPT', payload: { cardUid: c.uid } });
+        }
+        return actions;
+      }
       if (pr.kind === 'DISCARD') {
         const ranked = rankHandForDiscard(G, pIdx);
         actions.push({
@@ -298,11 +311,19 @@
         if (ranked.length >= 1) {
           actions.push({ kind: 'PROMPT', payload: { selectedUids: [ranked[0].uid] } });
         }
-        if (ranked.length >= 2 && getTotalFood(p, 'TACTIC') >= 1) {
+        if (ranked.length >= 2) {
           actions.push({ kind: 'PROMPT', payload: { selectedUids: ranked.slice(0, 2).map(c => c.uid) } });
         }
-        if (ranked.length >= 3 && getTotalFood(p, 'TACTIC') >= 1) {
+        if (ranked.length >= 3) {
           actions.push({ kind: 'PROMPT', payload: { selectedUids: ranked.slice(0, 3).map(c => c.uid) } });
+        }
+        return actions;
+      }
+      if (pr.kind === 'ZHANGZHAO_DISCARD') {
+        const ranked = rankHandForDiscard(G, pIdx);
+        actions.push({ kind: 'PROMPT', payload: { cardUid: null } });
+        if (ranked.length >= 1) {
+          actions.push({ kind: 'PROMPT', payload: { cardUid: ranked[0].uid } });
         }
         return actions;
       }

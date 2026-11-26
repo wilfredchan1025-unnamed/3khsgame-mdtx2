@@ -27,8 +27,8 @@
     },
     shu_guanping: {
       id: 'shu_guanping', name: '關平', type: 'GENERAL', faction: 'SHU', cost: 2, atk: 2, hp: 2, armor: 1,
-      keywords: ['ARMOR', 'GUARD'], icon: '🛡️', skillName: '龍佑',
-      text: '【龍佑】護衛相鄰友軍。'
+      keywords: ['ARMOR', 'GUARD'], icon: '🛡️', skillName: '龍吟',
+      text: '【龍吟】護衛。每回合限 1 次，當相鄰友軍發動普通攻擊後，使其本回合 +1 攻；若該友軍為「關羽」，改為抽 1 張牌。'
     },
     shu_weiyan: {
       id: 'shu_weiyan', name: '魏延', type: 'GENERAL', faction: 'SHU', cost: 3, atk: 3, hp: 3, armor: 0,
@@ -38,7 +38,7 @@
     shu_fazheng: {
       id: 'shu_fazheng', name: '法正', type: 'GENERAL', faction: 'SHU', cost: 3, atk: 2, hp: 4, armor: 0,
       keywords: [], icon: '📜', skillName: '奇謀',
-      text: '【奇謀】登場：若我方手牌少於敵方，抽 2 張牌；否則抽 1 張牌。'
+      text: '【奇謀】登場：若我方手牌少於敵方，抽 2 張牌並使敵方最高攻武將 -2 攻（1大回合）；否則抽 1 張牌，並使一名友方武將本回合獲得狙擊。'
     },
     shu_wangping: {
       id: 'shu_wangping', name: '王平', type: 'GENERAL', faction: 'SHU', cost: 3, atk: 2, hp: 4, armor: 1,
@@ -46,9 +46,9 @@
       text: '【無當】受到攻擊力 ≤ 2 的武將攻擊時，傷害 -1。'
     },
     shu_huangzhong: {
-      id: 'shu_huangzhong', name: '黃忠', type: 'GENERAL', faction: 'SHU', cost: 4, atk: 3, hp: 3, armor: 0,
-      keywords: ['SNIPE'], icon: '🏹', skillName: '烈弓',
-      text: '【烈弓】普通攻擊無視護衛。'
+      id: 'shu_huangzhong', name: '黃忠', type: 'GENERAL', faction: 'SHU', cost: 4, atk: 3, hp: 4, armor: 0,
+      keywords: ['SNIPE', 'KILL'], icon: '🏹', skillName: '烈弓',
+      text: '【烈弓】狙擊。攻擊受相鄰護衛保護的敵方武將時，本次傷害 +2 且無視護甲。斬殺：抽 1 張牌。'
     },
     shu_zhaoyun: {
       id: 'shu_zhaoyun', name: '趙雲', type: 'GENERAL', faction: 'SHU', cost: 4, atk: 3, hp: 4, armor: 1,
@@ -77,10 +77,10 @@
       text: '【繼志】登場：若我方場上有諸葛亮，獲得 +2/+2 與護衛。【九伐】攻擊國力且敵方國力 ≤ 15 時，額外 +2 傷。'
     },
     shu_zhugeliang: {
-      id: 'shu_zhugeliang', name: '諸葛亮', type: 'GENERAL', faction: 'SHU', cost: 6, atk: 2, hp: 6, armor: 1,
-      keywords: ['ARMOR'], icon: '🪶', skillName: '錦囊',
-      activeSkill: { name: '錦囊', cost: 1, desc: '二選一：全友軍 +1 臨時護甲／抽 1 牌並存 1 糧倉' },
-      text: '【錦囊】登場抽 2 張牌。主動(1糧，二選一)：全友軍 +1 臨時護甲（1大回合）／抽 1 牌並存 1 糧倉。'
+      id: 'shu_zhugeliang', name: '諸葛亮', type: 'GENERAL', faction: 'SHU', cost: 6, atk: 2, hp: 5, armor: 1,
+      keywords: ['ARMOR', 'SHROUD'], icon: '🪶', skillName: '觀星・八陣',
+      activeSkill: { name: '八陣', cost: 1, desc: '二選一：全友軍+1臨時護甲並移除減益／存2點糧倉' },
+      text: '【觀星】帷幕。登場：抽 2 張牌（若為謀略牌則費用 -1，最低 1，持續 2 大回合）。【八陣】主動(1糧，二選一)：全友軍 +1 臨時護甲並移除負面減益／往己方糧倉存入 2 點糧草。'
     },
     shu_guagu: {
       id: 'shu_guagu', name: '刮骨療毒', type: 'TACTIC', faction: 'SHU', cost: 1, target: 'ally_general', icon: '🩺',
@@ -128,8 +128,9 @@
     },
     wei_guojia: {
       id: 'wei_guojia', name: '郭嘉', type: 'GENERAL', faction: 'WEI', cost: 3, atk: 2, hp: 3, armor: 0,
-      keywords: ['DEATHRATTLE'], icon: '🪶', skillName: '遺計',
-      text: '【遺計】陣亡：抽 1 張牌；若我方手牌少於敵方，改為抽 2 張牌。'
+      keywords: ['DEATHRATTLE'], icon: '🕯️', skillName: '奇佐・遺計',
+      activeSkill: { name: '奇佐', cost: 1, maxUses: 2, desc: '抽 1 張牌，若為謀略牌則該牌本回合費用 -1（最低 1）' },
+      text: '【奇佐】主動(1糧，每場限 2 次)：抽 1 張牌，若為謀略牌則該牌本回合費用 -1（最低 1）。【遺計】陣亡：抽 1 張牌；若我方手牌少於敵方，改為抽 2 張牌。'
     },
     wei_caoren: {
       id: 'wei_caoren', name: '曹仁', type: 'GENERAL', faction: 'WEI', cost: 3, atk: 2, hp: 4, armor: 2,
@@ -173,15 +174,15 @@
       text: '【裸衣】登場可選自損 2 生命換 +2 攻。【虎痴】攻擊時無視護衛。'
     },
     wei_simayi: {
-      id: 'wei_simayi', name: '司馬懿', type: 'GENERAL', faction: 'WEI', cost: 5, atk: 3, hp: 5, armor: 0,
-      keywords: [], icon: '🐺', skillName: '鷹視・狼顧',
-      activeSkill: { name: '狼顧', cost: 1, desc: '指定敵將 -1 攻且下回合無法用主動技（1大回合）' },
-      text: '【鷹視】登場：查看敵方手牌，若其中有謀略牌，抽 1 張牌。【狼顧】主動(1糧)：指定一名敵方武將，攻擊力 -1 且下回合無法使用主動技（1大回合）。'
+      id: 'wei_simayi', name: '司馬懿', type: 'GENERAL', faction: 'WEI', cost: 5, atk: 3, hp: 5, armor: 1,
+      keywords: ['ARMOR', 'SHROUD'], icon: '🐺', skillName: '隱忍・反噬',
+      activeSkill: { name: '反噬', cost: 1, maxUses: 1, desc: '需 ≥2 層權謀（限1次）：消耗全部權謀，對敵全體造成層數點傷害，自身永久 +2/+2' },
+      text: '【隱忍】帷幕。登場：存 1 點糧倉，敵全體本回合與下個敵方回合 -1 攻。【反噬】敵方打謀略牌或用主動技時，獲 1 層權謀（上限3，用主動技後失效）並打敵國力 1 傷。主動(1糧，需≥2層，限1次)：耗全部權謀對敵全體造層數點傷並自身永久 +2/+2。'
     },
     wei_caocao: {
       id: 'wei_caocao', name: '曹操', type: 'GENERAL', faction: 'WEI', cost: 6, atk: 4, hp: 6, armor: 1,
-      keywords: ['ARMOR'], icon: '👑', skillName: '奸雄',
-      text: '【奸雄】登場（二選一）：全友軍本回合 +2 攻／抽 2 張牌並存入 1 點糧倉。'
+      keywords: ['ARMOR', 'SHROUD'], icon: '👑', skillName: '奸雄・魏武',
+      text: '【奸雄】帷幕。登場(二選一)：全友軍本回合 +2 攻／抽 2 張牌並存 1 點糧倉。【魏武】每當我方對敵將施加減攻或打出謀略牌時，對敵最高攻造 1 傷（每回合限 2 次；空場則打敵國力 1 傷）。'
     },
     wei_wangmei: {
       id: 'wei_wangmei', name: '望梅止渴', type: 'TACTIC', faction: 'WEI', cost: 1, target: 'ally_general', icon: '🍑',
@@ -240,8 +241,8 @@
     },
     wu_zhugejin: {
       id: 'wu_zhugejin', name: '諸葛瑾', type: 'GENERAL', faction: 'WU', cost: 3, atk: 2, hp: 4, armor: 0,
-      keywords: [], icon: '🕊️', skillName: '緩兵',
-      text: '【緩兵】登場：指定一名敵方武將下回合無法攻擊。'
+      keywords: [], icon: '🕊️', skillName: '緩兵・緩釋',
+      text: '【緩兵】登場：指定一名敵方武將下回合無法攻擊。【緩釋】在場時，我方其他武將受到的謀略牌與技能傷害 -1（最低 1）。'
     },
     wu_zhanghong: {
       id: 'wu_zhanghong', name: '張紘', type: 'GENERAL', faction: 'WU', cost: 3, atk: 2, hp: 4, armor: 0,
@@ -265,9 +266,9 @@
     },
     wu_sunquan: {
       id: 'wu_sunquan', name: '孫權', type: 'GENERAL', faction: 'WU', cost: 5, atk: 3, hp: 5, armor: 1,
-      keywords: ['ARMOR'], icon: '👑', skillName: '制衡',
-      activeSkill: { name: '制衡', cost: 0, desc: '選棄 1～3 張手牌並摸等量牌（棄 >1 張需耗 1 糧）' },
-      text: '【制衡】主動：每回合限 1 次，選棄 X 張手牌並摸 X 張牌（X ≤ 3；X > 1 需耗 1 糧）。'
+      keywords: ['ARMOR'], icon: '🐯', skillName: '制衡・坐斷東南',
+      activeSkill: { name: '制衡', cost: 0, desc: '0糧：選棄1~3張手牌並摸等量牌（棄≥2張額外多抽1牌並存1糧倉）' },
+      text: '【制衡】主動(0糧，每回合限 1 次)：選棄 1～3 張手牌並摸等量牌；若棄 ≥ 2 張，額外多抽 1 張牌並存 1 點糧倉。【坐斷東南】回合結束時，若我方手牌 ≥ 敵方，回國力 2 點並使相鄰友軍 +1 攻（1大回合）；若手牌 ≥ 6 張，額外打敵國力 2 傷。'
     },
     wu_zhoutai: {
       id: 'wu_zhoutai', name: '周泰', type: 'GENERAL', faction: 'WU', cost: 5, atk: 2, hp: 8, armor: 0,
@@ -346,8 +347,9 @@
     },
     qun_zhangjiao: {
       id: 'qun_zhangjiao', name: '張角', type: 'GENERAL', faction: 'QUN', cost: 4, atk: 2, hp: 4, armor: 0,
-      keywords: ['DEATHRATTLE'], icon: '⚡', skillName: '黃天',
-      text: '【黃天】登場：在空位召喚 1 名 1/2「黃巾力士」。遺計：對敵全體造成 1 傷。'
+      keywords: ['DEATHRATTLE'], icon: '⚡', skillName: '黃天・雷擊',
+      activeSkill: { name: '雷擊', cost: 1, desc: '獻祭1名黃巾力士（或耗1糧倉），對指定敵將造3傷並回自身1血' },
+      text: '【黃天】登場：在空位召喚 1 名 1/2「黃巾力士」。【雷擊】主動(1糧)：獻祭 1 名黃巾力士（或耗 1 糧倉），對指定敵將造 3 傷並回自身 1 血。遺計：對敵全體造成 1 傷。'
     },
     qun_mateng: {
       id: 'qun_mateng', name: '馬騰', type: 'GENERAL', faction: 'QUN', cost: 4, atk: 4, hp: 3, armor: 0,
@@ -376,8 +378,8 @@
     },
     qun_lubu: {
       id: 'qun_lubu', name: '呂布', type: 'GENERAL', faction: 'QUN', cost: 7, atk: 6, hp: 6, armor: 0,
-      keywords: ['COMBO', 'PIERCE', 'KILL'], icon: '🔱', skillName: '無雙',
-      text: '【無雙】破甲。斬殺：對敵方國力造成 2 點傷害。'
+      keywords: ['RUSH', 'PIERCE', 'KILL'], icon: '🔱', skillName: '無雙',
+      text: '【無雙】突襲、破甲。斬殺：本回合可額外攻擊 1 次（每回合限 1 次），並對敵方國力造成 2 點傷害。'
     },
     qun_ertao: {
       id: 'qun_ertao', name: '二桃殺三士', type: 'TACTIC', faction: 'QUN', cost: 1, target: 'enemy_adjacent_pair', icon: '🍑',
@@ -413,6 +415,107 @@
       keywords: ['ARMOR'], icon: '🛡️', skillName: '列陣',
       text: '【列陣】穩健的前期基礎步兵。'
     },
+
+    // ==========================================
+    // v3.3 NEW GENERALS (18 Cards)
+    // ==========================================
+    wei_yujin: {
+      id: 'wei_yujin', name: '于禁', type: 'GENERAL', faction: 'WEI', cost: 2, atk: 2, hp: 4, armor: 2,
+      keywords: ['ARMOR'], icon: '🛡️', skillName: '節潰',
+      text: '【節潰】當于禁生命值 ≤ 1 時，永久失去護甲且攻擊力 -1（最低為 0）。'
+    },
+    wei_zhonghui: {
+      id: 'wei_zhonghui', name: '鍾會', type: 'GENERAL', faction: 'WEI', cost: 3, atk: 3, hp: 3, armor: 0,
+      keywords: ['SHROUD'], icon: '🗡️', skillName: '自立',
+      text: '【自立】帷幕。回合結束時，若己方糧倉 ≥ 2，消耗 2 點糧倉，使鍾會永久獲得 +2/+2、破甲並抽 1 張牌。'
+    },
+    wei_lidian: {
+      id: 'wei_lidian', name: '李典', type: 'GENERAL', faction: 'WEI', cost: 2, atk: 1, hp: 4, armor: 1,
+      keywords: ['ARMOR', 'GUARD', 'DEATHRATTLE'], icon: '🏯', skillName: '恂恂',
+      text: '【恂恂】護衛。遺計：往己方糧倉存入 1 點糧草，並使相鄰友軍獲得 +1 攻與 +1 臨時護甲（1 大回合）。'
+    },
+    wei_xiahouyuan: {
+      id: 'wei_xiahouyuan', name: '夏侯淵', type: 'GENERAL', faction: 'WEI', cost: 3, atk: 3, hp: 3, armor: 0,
+      keywords: ['RUSH'], icon: '🐎', skillName: '虎步',
+      text: '【虎步】突襲。登場：若敵方場上武將數 ≥ 我方，夏侯淵本回合獲得 +1 攻與連擊。'
+    },
+
+    shu_liubei: {
+      id: 'shu_liubei', name: '劉備', type: 'GENERAL', faction: 'SHU', cost: 6, atk: 2, hp: 6, armor: 1,
+      keywords: ['ARMOR'], icon: '👑', skillName: '昭烈・激將',
+      text: '【昭烈】登場：所有友方武將獲得 +1/+1；若場上有「關羽」或「張飛」，額外回復己方國力 2 點並抽 1 張牌。【激將】相鄰友軍發動攻擊時，本回合攻擊力 +1。'
+    },
+    shu_liushan: {
+      id: 'shu_liushan', name: '劉禪', type: 'GENERAL', faction: 'SHU', cost: 2, atk: 1, hp: 4, armor: 0,
+      keywords: [], icon: '🏮', skillName: '放權',
+      activeSkill: { name: '放權', cost: 0, maxUses: 2, desc: '本回合無法攻擊，+1臨時糧草並使友將+1攻（孔明/姜維額外抽1牌）' },
+      text: '【放權】主動(0糧，每場限 2 次)：劉禪本回合無法攻擊，使己方本回合有額外 1 點臨時糧草並使一名友方武將本回合 +1 攻；若目標為「諸葛亮」或「姜維」，額外抽 1 張牌。'
+    },
+    shu_menghuo: {
+      id: 'shu_menghuo', name: '孟獲', type: 'GENERAL', faction: 'SHU', cost: 5, atk: 4, hp: 5, armor: 0,
+      keywords: ['DEATHRATTLE'], icon: '🐘', skillName: '再起',
+      text: '【再起】遺計：若己方國力 ≥ 18，在原位重新召喚 1 名 2/3/0、無遺計的「孟獲」。'
+    },
+    shu_masu: {
+      id: 'shu_masu', name: '馬謖', type: 'GENERAL', faction: 'SHU', cost: 3, atk: 2, hp: 3, armor: 0,
+      keywords: [], icon: '📜', skillName: '心戰・才氣',
+      text: '【心戰】登場：查看敵方隨機 2 張手牌；若其中包含謀略牌，抽 1 張牌並對敵方最高攻武將造成 1 點傷害。【才氣】每回合我方打出的第一張謀略牌費用 -1（最低為 1）。'
+    },
+    shu_liyan: {
+      id: 'shu_liyan', name: '李嚴', type: 'GENERAL', faction: 'SHU', cost: 4, atk: 2, hp: 4, armor: 1,
+      keywords: ['ARMOR'], icon: '🌾', skillName: '督糧',
+      activeSkill: { name: '督糧', cost: 0, desc: '耗1糧倉獲2臨時糧草；若無糧倉則存1糧倉' },
+      text: '【督糧】登場：往己方糧倉存入 2 點糧草。主動(0糧)：若己方糧倉 ≥ 1，消耗 1 點糧倉獲得 2 點臨時糧草；否則存 1 點糧倉。在場時糧倉上限 +1（4點）；回合結束糧倉為 0 則國力 -1。'
+    },
+
+    wu_dingfeng: {
+      id: 'wu_dingfeng', name: '丁奉', type: 'GENERAL', faction: 'WU', cost: 2, atk: 2, hp: 2, armor: 0,
+      keywords: ['RUSH'], icon: '🗡️', skillName: '短兵',
+      text: '【短兵】突襲。攻擊擁有護甲或護衛的敵方武將時，本回合 +2 攻並獲得破甲。'
+    },
+    wu_xusheng: {
+      id: 'wu_xusheng', name: '徐盛', type: 'GENERAL', faction: 'WU', cost: 4, atk: 3, hp: 4, armor: 1,
+      keywords: ['ARMOR', 'GUARD'], icon: '🏯', skillName: '疑城・破軍',
+      text: '【疑城】護衛。登場：若我方手牌 ≥ 4 張，獲得 +2 臨時護甲（2大回合）與帷幕（1大回合）。【破軍】登場：清除指定敵將護甲並凍結下回合；若目標為護衛則額外造成 2 傷。'
+    },
+    wu_guyong: {
+      id: 'wu_guyong', name: '顧雍', type: 'GENERAL', faction: 'WU', cost: 2, atk: 1, hp: 4, armor: 0,
+      keywords: [], icon: '📖', skillName: '慎行',
+      activeSkill: { name: '慎行', cost: 1, desc: '棄1手牌，存1糧倉抽1牌（棄謀略改抽2牌）' },
+      text: '【慎行】主動(1糧)：棄 1 張手牌，往己方糧倉存入 1 點糧草並抽 1 張牌；若棄置的是謀略牌，改為抽 2 張牌。'
+    },
+    wu_xiaoqiao: {
+      id: 'wu_xiaoqiao', name: '小喬', type: 'GENERAL', faction: 'WU', cost: 3, atk: 1, hp: 4, armor: 0,
+      keywords: [], icon: '🌺', skillName: '天香',
+      text: '【天香】每當小喬受到普通攻擊傷害時，傷害 -1（最低 0），並對敵方最高攻武將施加灼燒（持續 2 回合）；若我方場上有「周瑜」，額外抽 1 張牌。'
+    },
+    wu_zhangzhao: {
+      id: 'wu_zhangzhao', name: '張昭', type: 'GENERAL', faction: 'WU', cost: 3, atk: 1, hp: 5, armor: 1,
+      keywords: ['ARMOR'], icon: '🏛️', skillName: '固政',
+      text: '【固政】每當我方棄置手牌時，回復己方國力 1 點並往己方糧倉存入 1 點糧草（每回合限 1 次）。登場：可棄 1 張牌並抽 1 張牌；若我方場上有「張紘」，抽 1 張牌。'
+    },
+
+    qun_jiling: {
+      id: 'qun_jiling', name: '紀靈', type: 'GENERAL', faction: 'QUN', cost: 3, atk: 3, hp: 4, armor: 0,
+      keywords: [], icon: '🔱', skillName: '雙刃',
+      text: '【雙刃】每當紀靈主動攻擊敵方武將時，同時對目標相鄰的敵方武將造成 1 點傷害；若主目標陣亡，額外對敵方國力造成 1 點傷害。'
+    },
+    qun_tianfeng: {
+      id: 'qun_tianfeng', name: '田豐', type: 'GENERAL', faction: 'QUN', cost: 1, atk: 1, hp: 2, armor: 0,
+      keywords: ['DEATHRATTLE'], icon: '📜', skillName: '死諫',
+      text: '【死諫】遺計：抽 1 張牌；若陣亡時我方手牌數為 0，改為抽 2 張牌並對敵方最高攻武將造成 2 點傷害。'
+    },
+    qun_gaoshun: {
+      id: 'qun_gaoshun', name: '高順', type: 'GENERAL', faction: 'QUN', cost: 4, atk: 4, hp: 4, armor: 1,
+      keywords: ['ARMOR', 'PIERCE'], icon: '⚔️', skillName: '陷陣',
+      text: '【陷陣】破甲。攻擊護衛武將或敵方國力時，傷害 +1；若我方場上有「呂布」，高順獲得突襲。'
+    },
+    qun_jushou: {
+      id: 'qun_jushou', name: '沮授', type: 'GENERAL', faction: 'QUN', cost: 3, atk: 2, hp: 4, armor: 0,
+      keywords: [], icon: '🧭', skillName: '漸營',
+      text: '【漸營】每當我方在單一回合內打出第 2 張牌時，抽 1 張牌並獲得 1 點臨時糧草；在單一回合內打出第 3 張牌時，使全友軍 +0/+1。'
+    },
+
     neu_gongbing: {
       id: 'neu_gongbing', name: '強弩手', type: 'GENERAL', faction: 'NEU', cost: 2, atk: 2, hp: 2, armor: 0,
       keywords: [], icon: '🏹', skillName: '齊射',

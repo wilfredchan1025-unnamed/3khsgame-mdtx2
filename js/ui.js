@@ -692,7 +692,7 @@
           <div class="px-5 py-3.5 border-b border-amber-500/25 flex items-center justify-between bg-[#1b2230]">
             <div class="flex items-center gap-2">
               <h2 class="font-serif-tc text-xl font-bold text-amber-300">🎓 基本遊戲教學與 FAQ</h2>
-              <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-200 border border-amber-400/30">v3.2</span>
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-200 border border-amber-400/30">v3.3</span>
             </div>
             <button type="button" data-close-modal="1" class="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800">✕</button>
           </div>
@@ -719,7 +719,7 @@
       <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" data-close-backdrop="1">
         <div class="bg-[#141923] gold-border rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
           <div class="px-5 py-4 border-b border-amber-500/25 flex items-center justify-between bg-[#1b2230]">
-            <h2 class="font-serif-tc text-xl font-bold text-amber-300">《三國·謀定天下》完整遊戲規則手冊（v3.2）</h2>
+            <h2 class="font-serif-tc text-xl font-bold text-amber-300">《三國·謀定天下》完整遊戲規則手冊（v3.3）</h2>
             <button type="button" data-close-modal="1" class="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800">✕</button>
           </div>
           <div class="p-5 overflow-y-auto space-y-4 text-sm text-slate-200 leading-relaxed">
@@ -928,7 +928,7 @@
         <div class="w-full max-w-4xl bg-[#131822]/95 gold-border rounded-2xl shadow-2xl overflow-hidden">
           <div class="relative px-6 py-7 sm:py-9 text-center border-b border-amber-500/25 bg-gradient-to-b from-[#1e2433] to-[#131822]">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium mb-3">
-              <span>完整規則 v3.2</span>
+              <span>完整規則 v3.3</span>
               <span>•</span>
               <span>1v1 策略卡牌對戰</span>
             </div>
@@ -1316,6 +1316,7 @@
           ${silencedNow ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-600">🔇已沉默</span>` : ''}
           ${u.frozenNextTurn ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-950 text-sky-300 border border-sky-500/50">🕊️緩兵</span>` : ''}
           ${canActive ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/25 text-amber-200 border border-amber-400/60">✨主動</span>` : ''}
+          ${u.id === 'wei_simayi' && !silencedNow && !(u.activeUsesTotal > 0) ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-950/90 text-purple-200 border border-purple-400/60">🐺權謀 ${u.quanmou || 0}/3</span>` : ''}
           ${u.keywords.map(keywordBadgeHtml).join('')}
           ${effectsHtml}
         </div>
@@ -1426,7 +1427,7 @@
             🌾 糧草 ${p.food}/${p.maxFood}${p.tempFood > 0 ? ` <span class="text-yellow-300">(+${p.tempFood}臨)</span>` : ''}
           </div>
           <div class="px-2.5 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-orange-200 font-bold" title="糧倉：回合結束自動儲存未用完的普通糧草（上限 3），僅可用於謀略牌與主動技">
-            🏯 糧倉 ${p.reserveFood || 0}/${MAX_RESERVE_FOOD}
+            🏯 糧倉 ${p.reserveFood || 0}/${p.board.some(u => u && u.id === 'shu_liyan' && !isUnitSilenced(u)) ? MAX_RESERVE_FOOD + 1 : MAX_RESERVE_FOOD}
           </div>
           <div class="px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700 text-slate-200">📚 牌庫 <b>${p.deck.length}</b></div>
           <div class="px-2.5 py-1.5 rounded-lg border ${p.hand.length > getHandLimit(p.hp) ? 'bg-rose-950/90 border-rose-500 text-rose-200 animate-pulse' : 'bg-slate-800/90 border-slate-700 text-slate-200'}" title="手牌上限隨國力遞減：21-30國力=8張、11-20=6張、1-10=4張">
@@ -1689,6 +1690,74 @@
       `;
     }
 
+    if (pr.kind === 'TARGET_ALLY') {
+      const allies = p.board.map((u, s) => ({ u, s })).filter(x => x.u !== null);
+      return `
+        <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-[#141923] gold-border rounded-2xl max-w-2xl w-full p-5 shadow-2xl space-y-4">
+            <div class="flex items-center gap-2.5">
+              <span class="text-2xl">${pr.sourceIcon || '✨'}</span>
+              <div>
+                <h3 class="font-serif-tc text-xl font-bold text-amber-300">${pr.sourceName}・【${pr.skillName}】</h3>
+                <p class="text-xs text-slate-300">${pr.desc}</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              ${allies.map(({ u, s }) => `
+                <button type="button" data-prompt-target="${s}" class="text-left p-3 rounded-xl bg-[#1b2335] hover:bg-emerald-950/60 border border-emerald-500/40 hover:border-emerald-400 transition">
+                  <div class="text-[10px] text-slate-400 mb-1">${SLOT_NAMES[s]}</div>
+                  <div class="font-serif-tc font-bold text-sm text-amber-50">${u.icon} ${u.name}</div>
+                  <div class="flex gap-2 mt-1.5 text-xs font-extrabold">
+                    <span class="text-amber-300">⚔️${getUnitAtk(u, G)}</span>
+                    <span class="text-emerald-300">❤️${u.hp}/${u.maxHp}</span>
+                    ${u.armor ? `<span class="text-sky-300">🛡️${u.armor}</span>` : ''}
+                  </div>
+                  <p class="text-[10px] text-slate-300 mt-1 line-clamp-2">${u.text}</p>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (pr.kind === 'GUYONG_DISCARD' || pr.kind === 'ZHANGZHAO_DISCARD') {
+      const isGuyong = pr.kind === 'GUYONG_DISCARD';
+      return `
+        <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-[#141923] gold-border rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col p-5 shadow-2xl gap-4 overflow-hidden">
+            <div>
+              <h3 class="font-serif-tc text-xl font-bold text-amber-300">${pr.sourceIcon || '📜'} ${pr.sourceName}・【${pr.skillName}】</h3>
+              <p class="text-xs text-slate-300 mt-1">
+                ${isGuyong
+                  ? '選擇 1 張手牌棄置（消耗 1 糧）：往糧倉存入 1 點糧草並抽 1 張牌；若棄置謀略牌，改為抽 2 張牌。'
+                  : '登場效果：可選擇 1 張手牌棄置並重抽 1 張牌（觸發固政回血存糧），或點擊跳過。'}
+              </p>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 overflow-y-auto py-1">
+              ${p.hand.map(c => {
+                const f = FACTIONS[c.faction] || FACTIONS.NEU;
+                return `
+                  <button type="button" data-prompt-single-card="${c.uid}" class="text-left p-2.5 rounded-xl border bg-[#1b2232] border-slate-700 hover:border-amber-400 hover:bg-amber-950/30 transition">
+                    <div class="flex justify-between items-center">
+                      <span class="px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[11px] font-black">${c.cost}</span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span>
+                    </div>
+                    <div class="font-serif-tc font-bold text-sm text-amber-50 mt-1.5">${c.icon} ${c.name}</div>
+                    <div class="text-[10px] text-amber-300/80 mt-0.5">${c.type === 'TACTIC' ? (isGuyong ? '謀略（棄置抽2）' : '謀略') : '武將'}</div>
+                    <p class="text-[10px] text-slate-300 mt-1 line-clamp-2">${c.text}</p>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <button type="button" data-action="prompt-cancel" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold">${isGuyong ? '取消' : '跳過不棄'}</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     if (pr.kind === 'TARGET_ENEMY') {
       const enemies = enemy.board.map((u, s) => ({ u, s })).filter(x => x.u !== null);
       return `
@@ -1723,7 +1792,7 @@
     if (pr.kind === 'ZHIHENG' || pr.kind === 'DISCARD') {
       const isZhiheng = pr.kind === 'ZHIHENG';
       const selCount = UI.promptSelected.size;
-      const zhihengCost = selCount > 1 ? 1 : 0;
+      const zhihengCost = 0;
       const canConfirm = isZhiheng
         ? (selCount >= 1 && selCount <= pr.maxDiscard && getTotalFood(p, 'TACTIC') >= zhihengCost)
         : (selCount === pr.count);
@@ -1735,7 +1804,7 @@
                 ${isZhiheng ? `👑 孫權・【制衡】（已選 ${selCount} / ${pr.maxDiscard} 張）` : `🃏 手牌超過上限（需棄置 ${pr.count} 張，已選 ${selCount} 張）`}
               </h3>
               <p class="text-xs text-slate-300 mt-1">
-                ${isZhiheng ? `選擇 1～${pr.maxDiscard} 張手牌棄置並重抽等量新牌；棄 1 張免費，棄 2～3 張消耗 1 糧（目前可用 ${getTotalFood(p, 'TACTIC')} 糧）。` : pr.reason}
+                ${isZhiheng ? `選擇 1～${pr.maxDiscard} 張手牌棄置並重抽等量新牌（0 糧免費；棄置 ≥ 2 張額外多抽 1 牌並存入 1 點糧倉）。` : pr.reason}
               </p>
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 overflow-y-auto py-1">
@@ -1758,7 +1827,7 @@
             <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
               ${isZhiheng ? `<button type="button" data-action="prompt-cancel" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold">取消</button>` : ''}
               <button type="button" data-action="prompt-confirm" class="px-5 py-2 rounded-xl text-xs font-extrabold ${canConfirm ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-slate-700 text-slate-400 cursor-not-allowed'}" ${canConfirm ? '' : 'disabled'}>
-                ${isZhiheng ? `確認制衡${zhihengCost > 0 ? '（耗 1 糧）' : '（免費）'}` : `確認棄置並結束回合`}
+                ${isZhiheng ? `確認制衡（免費）` : `確認棄置並結束回合`}
               </button>
             </div>
           </div>
@@ -1844,7 +1913,7 @@
             ${G.mode === 'AI' ? `<span class="px-2 py-0.5 rounded bg-indigo-950/90 text-indigo-200 border border-indigo-500/40 text-xs font-bold">🧠 ${diffCfg.name}</span>` : ''}
             ${G.mode === 'ONLINE' ? `<span class="px-2 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 text-xs font-bold">🌐 房號 ${UI.onlineRoomCode}（${UI.onlineRole === 'HOST' ? '房主' : '客軍'}）</span>` : ''}
             <span class="hidden md:inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
-              v3.2 • 糧草上限 ${MAX_FOOD_CAP} + 糧倉 ${MAX_RESERVE_FOOD}
+              v3.3 • 糧草上限 ${MAX_FOOD_CAP} + 糧倉 ${MAX_RESERVE_FOOD}
             </span>
           </div>
           <div class="flex items-center gap-1.5 sm:gap-2">
@@ -1975,6 +2044,18 @@
         return;
       }
       resolvePendingPrompt(UI.G, getViewingPlayerIdx(), { choiceId });
+      syncOnlineStateAndRender();
+      scheduleAITurnIfNeeded();
+      return;
+    }
+    const prSingleCard = e.target.closest('[data-prompt-single-card]');
+    if (prSingleCard && UI.G && UI.G.pendingPrompt) {
+      const cardUid = Number(prSingleCard.getAttribute('data-prompt-single-card'));
+      if (UI.G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
+        sendGuestAction('RESOLVE_PROMPT', { response: { cardUid } });
+        return;
+      }
+      resolvePendingPrompt(UI.G, getViewingPlayerIdx(), { cardUid });
       syncOnlineStateAndRender();
       scheduleAITurnIfNeeded();
       return;
@@ -2245,12 +2326,15 @@
       }
       if (action === 'prompt-cancel' && UI.G && UI.G.pendingPrompt) {
         UI.promptSelected = new Set();
+        const isSingle = UI.G.pendingPrompt.kind === 'GUYONG_DISCARD' || UI.G.pendingPrompt.kind === 'ZHANGZHAO_DISCARD';
+        const resp = isSingle ? { cardUid: null } : { selectedUids: [] };
         if (UI.G.mode === 'ONLINE' && UI.onlineRole === 'GUEST') {
-          sendGuestAction('RESOLVE_PROMPT', { response: { selectedUids: [] } });
+          sendGuestAction('RESOLVE_PROMPT', { response: resp });
           return;
         }
-        resolvePendingPrompt(UI.G, getViewingPlayerIdx(), { selectedUids: [] });
+        resolvePendingPrompt(UI.G, getViewingPlayerIdx(), resp);
         syncOnlineStateAndRender();
+        scheduleAITurnIfNeeded();
         return;
       }
       if (action === 'prompt-confirm' && UI.G && UI.G.pendingPrompt) {
