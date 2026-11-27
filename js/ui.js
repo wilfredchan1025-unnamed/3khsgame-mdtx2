@@ -198,7 +198,7 @@
         body.theme-dark {
           background-color: #0d1016 !important;
           background-image:
-            linear-gradient(180deg, rgba(10, 14, 24, 0.28) 0%, rgba(10, 14, 24, 0.46) 100%),
+            linear-gradient(180deg, rgba(10, 14, 24, 0.30) 0%, rgba(10, 14, 24, 0.48) 100%),
             url('./assets/lobby_dark.jpg') !important;
           background-size: cover !important;
           background-position: center !important;
@@ -213,7 +213,7 @@
           background-size: cover !important;
           background-position: center !important;
           background-attachment: fixed !important;
-          color: #1f242d !important;
+          color: #1c222b !important;
         }
         .lobby-ink-hero {
           background-size: cover !important;
@@ -221,12 +221,12 @@
         }
         body.theme-dark .lobby-ink-hero {
           background-image:
-            linear-gradient(180deg, rgba(13, 18, 30, 0.24) 0%, rgba(19, 24, 34, 0.70) 100%),
+            linear-gradient(180deg, rgba(13, 18, 30, 0.32) 0%, rgba(19, 24, 34, 0.74) 100%),
             url('./assets/lobby_dark.jpg') !important;
         }
         body.theme-light .lobby-ink-hero {
           background-image:
-            linear-gradient(180deg, rgba(248, 241, 227, 0.20) 0%, rgba(244, 234, 214, 0.70) 100%),
+            linear-gradient(180deg, rgba(252, 247, 236, 0.42) 0%, rgba(246, 237, 219, 0.84) 100%),
             url('./assets/lobby_light.jpg') !important;
         }
         .battle-ink-bg {
@@ -236,12 +236,12 @@
         }
         body.theme-dark .battle-ink-bg {
           background-image:
-            linear-gradient(180deg, rgba(10, 14, 22, 0.14) 0%, rgba(10, 14, 22, 0.24) 100%),
+            linear-gradient(180deg, rgba(10, 14, 22, 0.16) 0%, rgba(10, 14, 22, 0.26) 100%),
             url('./assets/board_dark.jpg') !important;
         }
         body.theme-light .battle-ink-bg {
           background-image:
-            linear-gradient(180deg, rgba(250, 244, 232, 0.10) 0%, rgba(242, 233, 214, 0.20) 100%),
+            linear-gradient(180deg, rgba(250, 244, 232, 0.14) 0%, rgba(242, 233, 214, 0.24) 100%),
             url('./assets/board_light.jpg') !important;
         }
         .ink-card-back {
@@ -251,42 +251,88 @@
           border: 1px solid rgba(212, 175, 55, 0.65);
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
         }
-        body.theme-light .ink-surface {
-          background-color: rgba(249, 243, 231, 0.88) !important;
-          border-color: rgba(161, 126, 62, 0.45) !important;
-          color: #1f242d !important;
+
+        /* ===== 淺色宣紙主題（僅作用於 #app，不影響深色彈窗 #modal-root）高對比適配 ===== */
+        body.theme-light #app .ink-surface,
+        body.theme-light #app .ink-header {
+          background-color: rgba(251, 246, 235, 0.92) !important;
+          border-color: rgba(154, 118, 56, 0.48) !important;
+          color: #1c222b !important;
         }
-        body.theme-light .ink-surface-soft {
-          background-color: rgba(244, 235, 218, 0.84) !important;
-          border-color: rgba(161, 126, 62, 0.35) !important;
-          color: #252b36 !important;
+        body.theme-light #app .ink-surface-soft,
+        body.theme-light #app [class*="bg-slate-900"],
+        body.theme-light #app [class*="bg-slate-950"],
+        body.theme-light #app [class*="bg-slate-800"],
+        body.theme-light #app [class*="bg-[#141a26]"],
+        body.theme-light #app [class*="bg-[#181f2e]"],
+        body.theme-light #app [class*="bg-[#111622]"],
+        body.theme-light #app [class*="bg-[#151a25]"],
+        body.theme-light #app [class*="bg-[#151b26]"] {
+          background-color: rgba(246, 238, 222, 0.90) !important;
+          border-color: rgba(154, 118, 56, 0.42) !important;
+          color: #1c222b !important;
         }
-        body.theme-light .ink-header {
-          background-color: rgba(246, 238, 223, 0.92) !important;
-          border-color: rgba(161, 126, 62, 0.45) !important;
-          color: #1f242d !important;
+        body.theme-light #app .ink-card-unit,
+        body.theme-light #app .ink-card-hand {
+          background: linear-gradient(180deg, rgba(254, 250, 241, 0.97) 0%, rgba(242, 232, 212, 0.97) 100%) !important;
+          border-color: rgba(146, 108, 48, 0.62) !important;
+          color: #1c222b !important;
+          box-shadow: 0 3px 10px rgba(45, 32, 12, 0.14);
         }
-        body.theme-light .ink-title-text {
-          color: #7c4d12 !important;
+        body.theme-light #app .ink-title-text {
+          color: #78350f !important;
           background: none !important;
-          -webkit-text-fill-color: #7c4d12 !important;
+          -webkit-text-fill-color: #78350f !important;
+          text-shadow: 0 1px 10px rgba(255, 250, 238, 0.95);
         }
-        body.theme-light .ink-card-unit,
-        body.theme-light .ink-card-hand {
-          background: linear-gradient(180deg, rgba(253, 249, 240, 0.96) 0%, rgba(241, 231, 212, 0.96) 100%) !important;
-          color: #1e2430 !important;
-          border-color: rgba(154, 120, 62, 0.55) !important;
+        /* 文字高對比覆寫（深墨、深褐、深翠、深靛、朱砂） */
+        body.theme-light #app .text-slate-100,
+        body.theme-light #app .text-slate-200,
+        body.theme-light #app .text-amber-50,
+        body.theme-light #app .text-amber-100 {
+          color: #1c222b !important;
         }
-        body.theme-light .ink-card-unit .text-amber-50,
-        body.theme-light .ink-card-hand .text-amber-50,
-        body.theme-light .ink-surface .text-slate-100,
-        body.theme-light .ink-surface .text-amber-100,
-        body.theme-light .ink-surface .text-amber-200 {
-          color: #1f242d !important;
-        }
-        body.theme-light .ink-surface .text-slate-300,
-        body.theme-light .ink-surface .text-slate-400 {
+        body.theme-light #app .text-slate-300,
+        body.theme-light #app .text-slate-400 {
           color: #475569 !important;
+        }
+        body.theme-light #app .text-amber-200,
+        body.theme-light #app .text-amber-300,
+        body.theme-light #app .text-yellow-300 {
+          color: #92400e !important;
+        }
+        body.theme-light #app .text-emerald-200,
+        body.theme-light #app .text-emerald-300 {
+          color: #065f46 !important;
+        }
+        body.theme-light #app .text-sky-300,
+        body.theme-light #app .text-blue-300 {
+          color: #075985 !important;
+        }
+        body.theme-light #app .text-rose-200,
+        body.theme-light #app .text-rose-300,
+        body.theme-light #app .text-rose-400,
+        body.theme-light #app .text-red-300 {
+          color: #9f1239 !important;
+        }
+        body.theme-light #app .text-indigo-100,
+        body.theme-light #app .text-indigo-200,
+        body.theme-light #app .text-purple-200,
+        body.theme-light #app .text-purple-300 {
+          color: #3730a3 !important;
+        }
+        /* 保留陣營徽章與實心主按鈕的清晰白字／深字對比 */
+        body.theme-light #app .bg-red-900\/90,
+        body.theme-light #app .bg-blue-900\/90,
+        body.theme-light #app .bg-emerald-900\/90,
+        body.theme-light #app .bg-purple-900\/90 {
+          color: #f8fafc !important;
+        }
+        body.theme-light #app .bg-indigo-500,
+        body.theme-light #app .bg-emerald-600,
+        body.theme-light #app .bg-rose-600,
+        body.theme-light #app .from-indigo-500 {
+          color: #ffffff !important;
         }
       `;
       document.head.appendChild(tStyle);
