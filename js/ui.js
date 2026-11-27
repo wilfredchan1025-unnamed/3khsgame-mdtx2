@@ -268,90 +268,103 @@
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
         }
 
-        /* ===== 淺色宣紙主題高對比適配（僅作用於 #app，不影響深色彈窗 #modal-root） ===== */
-        body.theme-light #app .ink-surface,
-        body.theme-light #app .ink-header {
+        /* ===== 淺色宣紙主題高對比適配（僅作用於主畫面 #app > :not(.fixed)，讓起手調度與彈窗維持深墨高對比） ===== */
+        body.theme-light #app > :not(.fixed) .ink-surface,
+        body.theme-light #app > :not(.fixed) .ink-header {
           background-color: rgba(251, 246, 235, 0.93) !important;
           border-color: rgba(154, 118, 56, 0.48) !important;
           color: #1c222b !important;
         }
-        body.theme-light #app .ink-surface-soft,
-        body.theme-light #app [class*="bg-slate-900"],
-        body.theme-light #app [class*="bg-slate-950"],
-        body.theme-light #app [class*="bg-slate-800"],
-        body.theme-light #app [class*="bg-[#141a26]"],
-        body.theme-light #app [class*="bg-[#181f2e]"],
-        body.theme-light #app [class*="bg-[#111622]"],
-        body.theme-light #app [class*="bg-[#151a25]"],
-        body.theme-light #app [class*="bg-[#151b26]"] {
+        body.theme-light #app > :not(.fixed) .ink-surface-soft,
+        body.theme-light #app > :not(.fixed) [class*="bg-slate-900"],
+        body.theme-light #app > :not(.fixed) [class*="bg-slate-950"],
+        body.theme-light #app > :not(.fixed) [class*="bg-slate-800"],
+        body.theme-light #app > :not(.fixed) [class*="bg-[#141a26]"],
+        body.theme-light #app > :not(.fixed) [class*="bg-[#181f2e]"],
+        body.theme-light #app > :not(.fixed) [class*="bg-[#111622]"],
+        body.theme-light #app > :not(.fixed) [class*="bg-[#151a25]"],
+        body.theme-light #app > :not(.fixed) [class*="bg-[#151b26]"] {
           background-color: rgba(246, 238, 222, 0.92) !important;
           border-color: rgba(154, 118, 56, 0.44) !important;
           color: #1c222b !important;
         }
-        body.theme-light #app .ink-card-unit,
-        body.theme-light #app .ink-card-hand {
+        body.theme-light #app > :not(.fixed) .ink-card-unit,
+        body.theme-light #app > :not(.fixed) .ink-card-hand {
           background: linear-gradient(180deg, rgba(254, 250, 241, 0.97) 0%, rgba(242, 232, 212, 0.97) 100%) !important;
           border-color: rgba(146, 108, 48, 0.62) !important;
           color: #1c222b !important;
           box-shadow: 0 3px 10px rgba(45, 32, 12, 0.14);
         }
-        body.theme-light #app .ink-title-text {
+        body.theme-light #app > :not(.fixed) .ink-title-text {
           color: #78350f !important;
           background: none !important;
           -webkit-text-fill-color: #78350f !important;
           text-shadow: 0 1px 10px rgba(255, 250, 238, 0.95);
         }
-        body.theme-light #app .text-slate-100,
-        body.theme-light #app .text-slate-200,
-        body.theme-light #app .text-amber-50,
-        body.theme-light #app .text-amber-100 {
+        body.theme-light #app > :not(.fixed) .text-slate-100,
+        body.theme-light #app > :not(.fixed) .text-slate-200,
+        body.theme-light #app > :not(.fixed) .text-amber-50,
+        body.theme-light #app > :not(.fixed) .text-amber-100 {
           color: #1c222b !important;
         }
-        body.theme-light #app .text-slate-300,
-        body.theme-light #app .text-slate-400 {
+        body.theme-light #app > :not(.fixed) .text-slate-300,
+        body.theme-light #app > :not(.fixed) .text-slate-400 {
           color: #475569 !important;
         }
-        body.theme-light #app .text-amber-200,
-        body.theme-light #app .text-amber-300,
-        body.theme-light #app .text-yellow-300 {
+        body.theme-light #app > :not(.fixed) .text-amber-200,
+        body.theme-light #app > :not(.fixed) .text-amber-300,
+        body.theme-light #app > :not(.fixed) .text-yellow-300 {
           color: #92400e !important;
         }
-        body.theme-light #app .text-emerald-200,
-        body.theme-light #app .text-emerald-300 {
+        body.theme-light #app > :not(.fixed) .text-emerald-200,
+        body.theme-light #app > :not(.fixed) .text-emerald-300 {
           color: #065f46 !important;
         }
-        body.theme-light #app .text-sky-300,
-        body.theme-light #app .text-blue-300 {
+        body.theme-light #app > :not(.fixed) .text-sky-300,
+        body.theme-light #app > :not(.fixed) .text-blue-300 {
           color: #075985 !important;
         }
-        body.theme-light #app .text-rose-200,
-        body.theme-light #app .text-rose-300,
-        body.theme-light #app .text-rose-400,
-        body.theme-light #app .text-red-300 {
+        body.theme-light #app > :not(.fixed) .text-rose-200,
+        body.theme-light #app > :not(.fixed) .text-rose-300,
+        body.theme-light #app > :not(.fixed) .text-rose-400,
+        body.theme-light #app > :not(.fixed) .text-red-300 {
           color: #9f1239 !important;
         }
-        body.theme-light #app .text-indigo-100,
-        body.theme-light #app .text-indigo-200,
-        body.theme-light #app .text-purple-200,
-        body.theme-light #app .text-purple-300 {
+        body.theme-light #app > :not(.fixed) .text-indigo-100,
+        body.theme-light #app > :not(.fixed) .text-indigo-200,
+        body.theme-light #app > :not(.fixed) .text-purple-200,
+        body.theme-light #app > :not(.fixed) .text-purple-300 {
           color: #3730a3 !important;
         }
-        /* 修正：淺色模式下，深色陣營徽章（蜀/魏/吳/群）與深色功能鈕（基本遊戲教學/退出）一律強制白字高對比 */
-        body.theme-light #app [class*="bg-red-900"],
-        body.theme-light #app [class*="bg-blue-900"],
-        body.theme-light #app [class*="bg-emerald-900"],
-        body.theme-light #app [class*="bg-purple-900"],
-        body.theme-light #app [class*="bg-indigo-950"],
-        body.theme-light #app [class*="bg-indigo-900"],
-        body.theme-light #app [class*="bg-rose-950"],
-        body.theme-light #app [class*="bg-emerald-950"],
-        body.theme-light #app [class*="bg-indigo-500"],
-        body.theme-light #app [class*="bg-emerald-600"],
-        body.theme-light #app [class*="bg-rose-600"],
-        body.theme-light #app [class*="from-indigo-500"] {
+        /* 卡牌費用球（糧草不足時 bg-slate-700）：改為淺紅宣紙底配深朱砂紅字；夠糧時維持金底黑字 */
+        body.theme-light #app > :not(.fixed) .bg-slate-700 {
+          background-color: #f3e2d4 !important;
+          color: #9f1239 !important;
+          border: 1px solid rgba(159, 18, 57, 0.35);
+        }
+        body.theme-light #app > :not(.fixed) .bg-amber-400 {
+          background-color: #f59e0b !important;
+          color: #111827 !important;
+        }
+        /* 國力防線≤20、深色陣營徽章（蜀/魏/吳/群）與深色功能鈕一律強制白字高對比 */
+        body.theme-light #app > :not(.fixed) [class*="bg-sky-950"],
+        body.theme-light #app > :not(.fixed) [class*="bg-sky-900"],
+        body.theme-light #app > :not(.fixed) [class*="bg-red-900"],
+        body.theme-light #app > :not(.fixed) [class*="bg-blue-900"],
+        body.theme-light #app > :not(.fixed) [class*="bg-emerald-900"],
+        body.theme-light #app > :not(.fixed) [class*="bg-purple-900"],
+        body.theme-light #app > :not(.fixed) [class*="bg-indigo-950"],
+        body.theme-light #app > :not(.fixed) [class*="bg-indigo-900"],
+        body.theme-light #app > :not(.fixed) [class*="bg-rose-950"],
+        body.theme-light #app > :not(.fixed) [class*="bg-emerald-950"],
+        body.theme-light #app > :not(.fixed) [class*="bg-indigo-500"],
+        body.theme-light #app > :not(.fixed) [class*="bg-emerald-600"],
+        body.theme-light #app > :not(.fixed) [class*="bg-rose-600"],
+        body.theme-light #app > :not(.fixed) [class*="from-indigo-500"] {
           color: #ffffff !important;
         }
-        body.theme-light #app [class*="bg-amber-500/20"] {
+        body.theme-light #app > :not(.fixed) [class*="bg-amber-500/20"],
+        body.theme-light #app > :not(.fixed) [class*="bg-amber-500/25"] {
           background-color: rgba(245, 158, 11, 0.28) !important;
           color: #78350f !important;
           border-color: #d97706 !important;
@@ -2473,6 +2486,16 @@
       if (skillEvts.length > 0) showSkillShowcase(skillEvts[skillEvts.length - 1]);
       if (UI.G && UI.G.vfxEvents.length > 0) UI.G.vfxEvents = [];
       if (UI.G && UI.G.animEvents && UI.G.animEvents.length > 0) UI.G.animEvents = [];
+
+      // 自動喚醒保底：若目前輪到 AI（調度或行動階段）、無待人類回應的彈窗、且沒有排程計時器，立刻自動續排 AI 行動
+      if (UI.G && !UI.aiTimer) {
+        const g = UI.G;
+        const aiNeedsMulligan = g.phase === 'MULLIGAN' && g.players[g.mulliganActor] && g.players[g.mulliganActor].isAI;
+        const aiNeedsMain = g.phase === 'MAIN' && g.players[g.activePlayer] && g.players[g.activePlayer].isAI && !(g.pendingPrompt && !g.players[g.pendingPrompt.owner].isAI);
+        if (aiNeedsMulligan || aiNeedsMain) {
+          scheduleAITurnIfNeeded();
+        }
+      }
     }
   }
 
