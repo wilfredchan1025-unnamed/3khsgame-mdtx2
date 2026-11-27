@@ -4,7 +4,7 @@
   const {
     FACTIONS, FACTION_LIST, BOARD_SIZE, SLOT_NAMES, MAX_HAND_SIZE, MAX_FOOD_CAP, MAX_RESERVE_FOOD, MAX_SUB_FACTION_CARDS, SUB_FACTION_MAX_COST, DECK_SIZE, MAX_COPIES, getHandLimit,
     CARD_DB, STARTER_DECKS, RECOMMENDED_DECKS, buildRandomLegalDeck, customDecks, MAX_SAVED_DECK_SLOTS, savedDeckSlots, saveDeckToSlot, deleteDeckSlot, validateDeck,
-    getDeckForFaction, saveCustomDeck, Sound,
+    getDeckForFaction, saveCustomDeck, Sound, Stats, VFX,
     isUnitSilenced, getUnitAtk, getUnitMaxAttacks, unitHasGuard, unitHasSnipe, isProtectedByAdjacentGuard, canUnitAttack, canUseActiveSkill, createGameState,
     getTotalFood, performMulligan, getValidAttackTargets, canPlayCard,
     playGeneral, playTactic, activateUnitSkill, resolvePendingPrompt, executeAttack, endTurn,
@@ -352,40 +352,32 @@
         body.theme-light #app > :not(.fixed) [class*="text-purple-300"] {
           color: #3730a3 !important;
         }
-        /* 卡牌費用球（bg-slate-700）與整備中標籤（bg-slate-700/80）：淺宣紙底配深字高對比 */
+        /* 卡牌費用球（糧草不足時 bg-slate-700）：改為淺紅宣紙底配深朱砂紅字；夠糧時維持金底黑字 */
         body.theme-light #app > :not(.fixed) .bg-slate-700 {
           background-color: #f3e2d4 !important;
           color: #9f1239 !important;
           border: 1px solid rgba(159, 18, 57, 0.35);
         }
-        body.theme-light #app > :not(.fixed) [class*="bg-slate-700/"] {
-          background-color: #e6dcc6 !important;
-          color: #334155 !important;
-          border: 1px solid rgba(100, 116, 139, 0.45);
-        }
         body.theme-light #app > :not(.fixed) .bg-amber-400 {
           background-color: #f59e0b !important;
           color: #111827 !important;
         }
-        /* 所有深色 900/950 徽章與標籤（含司馬懿權謀、灼燒、減益、緩兵、防線≤20、陣營章與功能鈕）一律強制純白字高對比 */
-        body.theme-light #app > :not(.fixed) [class*="-950"],
+        /* 國力防線≤20、深色陣營徽章（蜀/魏/吳/群）與深色功能鈕一律強制白字高對比 */
+        body.theme-light #app > :not(.fixed) [class*="bg-sky-950"],
         body.theme-light #app > :not(.fixed) [class*="bg-sky-900"],
         body.theme-light #app > :not(.fixed) [class*="bg-red-900"],
         body.theme-light #app > :not(.fixed) [class*="bg-blue-900"],
         body.theme-light #app > :not(.fixed) [class*="bg-emerald-900"],
         body.theme-light #app > :not(.fixed) [class*="bg-purple-900"],
+        body.theme-light #app > :not(.fixed) [class*="bg-indigo-950"],
         body.theme-light #app > :not(.fixed) [class*="bg-indigo-900"],
-        body.theme-light #app > :not(.fixed) [class*="bg-orange-900"],
+        body.theme-light #app > :not(.fixed) [class*="bg-rose-950"],
+        body.theme-light #app > :not(.fixed) [class*="bg-emerald-950"],
         body.theme-light #app > :not(.fixed) [class*="bg-indigo-500"],
         body.theme-light #app > :not(.fixed) [class*="bg-emerald-600"],
         body.theme-light #app > :not(.fixed) [class*="bg-rose-600"],
         body.theme-light #app > :not(.fixed) [class*="from-indigo-500"] {
           color: #ffffff !important;
-        }
-        /* 避免把 bg-slate-950 宣紙容器誤設成白字（恢復深墨字） */
-        body.theme-light #app > :not(.fixed) [class*="bg-slate-950"],
-        body.theme-light #app > :not(.fixed) [class*="text-slate-950"] {
-          color: #1c222b !important;
         }
         body.theme-light #app > :not(.fixed) [class*="bg-amber-500/20"],
         body.theme-light #app > :not(.fixed) [class*="bg-amber-500/25"] {
@@ -796,6 +788,7 @@
 
   function startNewMatch() {
     clearAiTimer();
+    if (VFX && typeof VFX.clear === 'function') VFX.clear();
     let first = 0;
     if (UI.firstChoice === 'RANDOM') first = Math.random() < 0.5 ? 0 : 1;
     else if (UI.firstChoice === 'P1') first = 1;
@@ -2132,7 +2125,8 @@
     }
 
     if (pr.kind === 'TARGET_ALLY') {
-      const allies = p.board.map((u, s) => ({ u, s })).filter(x => x.u !== null);
+      const excludeSlot = pr.context && typeof pr.context.excludeSlot === 'number' ? pr.context.excludeSlot : -1;
+      const allies = p.board.map((u, s) => ({ u, s })).filter(x => x.u !== null && x.s !== excludeSlot);
       return `
         <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div class="bg-[#141923] gold-border rounded-2xl max-w-2xl w-full p-5 shadow-2xl space-y-4">
@@ -2295,24 +2289,48 @@
   function renderGameOverOverlay() {
     const G = UI.G;
     const title = G.winner === 'DRAW' ? '雙方平局！' : `${G.players[G.winner].name} 獲勝！`;
+    const hl = (Stats && typeof Stats.computeHighlights === 'function') ? Stats.computeHighlights(G) : null;
+    const highlightHtml = hl ? `
+      <div class="recap-grid">
+        <div class="recap-card">
+          <div class="recap-label">🏆 ${hl.mvpLabel}</div>
+          <div class="recap-value text-amber-300">${hl.mvp.icon} ${hl.mvp.name}</div>
+          <div class="recap-sub">${hl.mvp.title}・${hl.mvp.summary}</div>
+        </div>
+        <div class="recap-card">
+          <div class="recap-label">🔥 最高單回合傷害</div>
+          <div class="recap-value text-orange-300">${hl.maxTurnDamage.value} 傷</div>
+          <div class="recap-sub">${hl.maxTurnDamage.turn ? `第 ${hl.maxTurnDamage.turn} 回合爆發` : '尚無爆發紀錄'}</div>
+        </div>
+        <div class="recap-card">
+          <div class="recap-label">⚡ 逆轉次數</div>
+          <div class="recap-value text-emerald-300">
+            ${hl.comebacks.count} 次${hl.comebacks.isDefenseLineComeback ? '<span class="recap-seal">背水逆轉</span>' : ''}
+          </div>
+          <div class="recap-sub">最低國力 ${hl.comebacks.minHp}・共 ${hl.turns} 回合</div>
+        </div>
+      </div>
+    ` : '';
     return `
-      <div class="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-[#151b26] gold-border rounded-2xl p-7 text-center max-w-md w-full shadow-2xl gold-glow">
-          <div class="text-5xl mb-3">🏆</div>
+      <div class="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-[#151b26] gold-border rounded-2xl p-6 sm:p-7 text-center max-w-2xl w-full shadow-2xl gold-glow">
+          <div class="text-4xl mb-2">🏆</div>
           <h2 class="font-serif-tc text-3xl font-black text-amber-300">${title}</h2>
-          <p class="text-sm text-slate-200 mt-3 leading-relaxed">${G.winReason}</p>
-          <div class="grid grid-cols-2 gap-3 mt-5 text-xs bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+          <p class="text-sm text-slate-200 mt-2 leading-relaxed">${G.winReason}</p>
+          ${highlightHtml}
+          <div class="grid grid-cols-2 gap-3 mt-3 text-xs bg-slate-900/80 p-3 rounded-xl border border-slate-800">
             <div>
               <div class="text-slate-400">${G.players[0].name}</div>
-              <div class="font-bold text-base text-emerald-300 mt-0.5">國力 ${G.players[0].hp}</div>
+              <div class="font-bold text-base text-emerald-300 mt-0.5">國力 ${Math.max(0, G.players[0].hp)}</div>
             </div>
             <div>
               <div class="text-slate-400">${G.players[1].name}</div>
-              <div class="font-bold text-base text-rose-300 mt-0.5">國力 ${G.players[1].hp}</div>
+              <div class="font-bold text-base text-rose-300 mt-0.5">國力 ${Math.max(0, G.players[1].hp)}</div>
             </div>
           </div>
-          <div class="flex items-center justify-center gap-3 mt-6">
+          <div class="flex flex-wrap items-center justify-center gap-3 mt-5">
             <button type="button" data-action="rematch" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm">⚔️ 再戰一局</button>
+            ${hl ? `<button type="button" data-action="copy-highlight" class="px-4 py-2.5 rounded-xl bg-indigo-900/80 hover:bg-indigo-800 text-amber-100 font-semibold text-sm border border-amber-500/40">📋 複製戰報高光</button>` : ''}
             <button type="button" data-action="back-lobby" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold text-sm border border-slate-600">返回主選單</button>
           </div>
         </div>
@@ -2368,7 +2386,7 @@
             ${G.mode === 'AI' ? `<span class="px-2 py-0.5 rounded bg-indigo-950/90 text-indigo-200 border border-indigo-500/40 text-xs font-bold">🧠 ${diffCfg.name}</span>` : ''}
             ${G.mode === 'ONLINE' ? `<span class="px-2 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 text-xs font-bold">🌐 房號 ${UI.onlineRoomCode}（${UI.onlineRole === 'HOST' ? '房主' : '客軍'}）</span>` : ''}
             <span class="hidden md:inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
-              v3.4 • 糧草上限 ${MAX_FOOD_CAP} + 糧倉 ${MAX_RESERVE_FOOD} • 防線≤20
+              v3.5 • 糧草上限 ${MAX_FOOD_CAP} + 糧倉 ${MAX_RESERVE_FOOD} • 防線≤20
             </span>
           </div>
           <div class="flex items-center gap-1.5 sm:gap-2">
@@ -2492,6 +2510,48 @@
     `;
   }
 
+  function dispatchVfxFromState(G) {
+    if (!VFX || !G) return;
+    const anims = G.animEvents || [];
+    const vfxs = G.vfxEvents || [];
+    const getUnitEl = (o, s) => document.querySelector(`[data-unit-click="${o}:${s}"]`);
+    const getHeroEl = (o) => document.querySelector(`[data-hero-click="${o}"]`);
+
+    if (vfxs.some(v => v.text && v.text.includes('觸發國力防線'))) {
+      VFX.triggerDefenseLine();
+    }
+    anims.filter(a => a.kind === 'deploy').forEach(a => {
+      VFX.triggerDeploy(getUnitEl(a.owner, a.slot));
+    });
+    anims.filter(a => a.kind === 'attack').forEach(a => {
+      const targetEl = a.targetType === 'HERO'
+        ? getHeroEl(a.targetOwner)
+        : getUnitEl(a.targetOwner, a.targetSlot);
+      VFX.playSlashSpark(targetEl, { heavy: Boolean(a.pierce) || a.targetType === 'HERO' });
+      VFX.shakeBoard(a.targetType === 'HERO' ? 'heavy' : 'normal');
+    });
+    const burnTargets = anims
+      .filter(a => a.kind === 'fx' && a.fxType === 'burn')
+      .map(a => getUnitEl(a.owner, a.slot))
+      .filter(Boolean);
+
+    anims.filter(a => a.kind === 'skill').forEach(a => {
+      const enemyIdx = 1 - a.owner;
+      const casterSlot = G.players[a.owner].board.findIndex(u => u && u.name === a.unitName);
+      const casterEl = casterSlot !== -1 ? getUnitEl(a.owner, casterSlot) : getHeroEl(a.owner);
+      if (a.fxType === 'burn' || ['英姿', '火計', '連營', '度勢'].includes(a.skillName)) {
+        const targets = burnTargets.length ? burnTargets : [getHeroEl(enemyIdx)];
+        VFX.playFireStream(casterEl, targets, { staggerMs: 80 });
+        VFX.showCallout(`${a.unitName}・${a.skillName}！`, { tone: 'fire' });
+      } else if (a.skillName === '亂武') {
+        const enemyEls = Array.from(document.querySelectorAll(`[data-unit-click^="${enemyIdx}:"]`));
+        VFX.triggerLuanwuPulse(enemyEls);
+      } else if (a.skillName === '完殺') {
+        VFX.playInkSplash(getHeroEl(enemyIdx), { mode: 'dispel' });
+      }
+    });
+  }
+
   function render() {
     ensureFxStyles();
     if (document.body) {
@@ -2506,6 +2566,7 @@
       const tacticEvts = (UI.G && UI.G.animEvents) ? UI.G.animEvents.filter(a => a.kind === 'tactic') : [];
       const skillEvts = (UI.G && UI.G.animEvents) ? UI.G.animEvents.filter(a => a.kind === 'skill') : [];
       app.innerHTML = renderGame();
+      dispatchVfxFromState(UI.G);
       if (tacticEvts.length > 0) showTacticShowcase(tacticEvts[tacticEvts.length - 1]);
       if (skillEvts.length > 0) showSkillShowcase(skillEvts[skillEvts.length - 1]);
       if (UI.G && UI.G.vfxEvents.length > 0) UI.G.vfxEvents = [];
@@ -2916,6 +2977,17 @@
         return;
       }
       if (action === 'start-match') { startNewMatch(); return; }
+      if (action === 'copy-highlight') {
+        if (UI.G && Stats && typeof Stats.computeHighlights === 'function') {
+          const text = Stats.computeHighlights(UI.G).shareText;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => showToast('📋 已複製本局戰報高光！', 'success')).catch(() => showToast('複製失敗，請手動截圖', 'error'));
+          } else {
+            showToast('📋 戰報已就緒，請直接截圖分享', 'gold');
+          }
+        }
+        return;
+      }
       if (action === 'rematch') {
         if (UI.G && UI.G.mode === 'ONLINE') {
           if (UI.onlineRole === 'HOST') startOnlineHostMatch();

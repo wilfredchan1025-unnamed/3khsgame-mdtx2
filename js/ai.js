@@ -281,6 +281,7 @@
       }
       if (pr.kind === 'TARGET_ALLY') {
         for (let s = 0; s < BOARD_SIZE; s++) {
+          if (pr.context && typeof pr.context.excludeSlot === 'number' && s === pr.context.excludeSlot) continue;
           if (p.board[s]) actions.push({ kind: 'PROMPT', payload: { slot: s } });
         }
         return actions;

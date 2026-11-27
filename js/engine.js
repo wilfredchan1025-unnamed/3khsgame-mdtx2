@@ -239,6 +239,12 @@
       if (hasTurban) return getTotalFood(p, 'TACTIC') >= 1;
       return p.reserveFood >= 1 && (p.food + p.tempFood + (p.reserveFood - 1)) >= 1;
     }
+    if (u.id === 'wei_dianwei') {
+      if (!enemy.board.some(eu => eu !== null)) return false;
+    }
+    if (u.id === 'qun_dongzhuo') {
+      if (p.hp <= 2) return false;
+    }
     if (u.id === 'shu_liushan') {
       if (u.attacksUsed > 0) return false;
       return p.board.some(au => au !== null);
@@ -266,6 +272,7 @@
         tempFood: 0,
         reserveFood: 0,
         nextTurnFoodPenalty: 0,
+        pofuEndTurnDamage: 0,
         deck: d0,
         hand: [],
         graveyard: [],
@@ -288,6 +295,7 @@
         tempFood: 0,
         reserveFood: 0,
         nextTurnFoodPenalty: 0,
+        pofuEndTurnDamage: 0,
         deck: d1,
         hand: [],
         graveyard: [],
@@ -304,7 +312,7 @@
     for (let i = 0; i < 3; i++) players[firstPlayer].hand.push(players[firstPlayer].deck.pop());
     for (let i = 0; i < 4; i++) players[secondPlayer].hand.push(players[secondPlayer].deck.pop());
 
-    return {
+    const state = {
       mode,
       aiDifficulty,
       silent: false,
@@ -325,10 +333,13 @@
       firstGeneralPlayed: false,
       zhoutaiBquUsed: [0, 0],
       lingtongSizhanUsed: [false, false],
+      zhonghuiZiliUsed: [false, false],
       pendingPrompt: null,
       vfxEvents: [],
       animEvents: []
     };
+    if (global.Sanguo && global.Sanguo.Stats) {global.Sanguo.Stats.initMatchStats(state);}
+    return state;
   }
 
   function addLog(G, msg) {
@@ -547,6 +558,7 @@
 
     // v3.1 food curve: T1-T5 +1 each turn; T6+ +1 every 2 turns (T7, T9, T11), cap 8
     const shouldGrow = p.turnsTaken <= 5 || (p.turnsTaken % 2 === 1);
+    if (global.Sanguo && global.Sanguo.Stats) { global.Sanguo.Stats.onTurnStart(G, pIdx); }
     if (shouldGrow && p.maxFood < MAX_FOOD_CAP) {
       p.maxFood = Math.min(MAX_FOOD_CAP, p.maxFood + 1);
     }
@@ -700,6 +712,31 @@
     return false;
   }
 
+  function resolveDamageSourceFromLabel(sourceLabel) {    if (!sourceLabel) return {};
+    const m = sourceLabel.match(/【([^·】]+)/);
+    if (!m) return {};
+    const rawName = m[1].trim();
+    const card = Object.values(CARD_DB).find(c => c && c.name === rawName);
+    if (!card) return {};
+    return card.type === 'GENERAL' ? { unit: card } : { card };
+  }
+
+  function dispelPositiveBuffs(eu) {
+    const baseDef = CARD_DB[eu.id];
+    eu.effects = eu.effects.filter(eff => !(
+      (eff.type === 'atk_buff' && eff.val > 0) ||
+      (eff.type === 'armor_buff' && eff.val > 0) ||
+      eff.type === 'guard_buff'
+    ));
+    if (baseDef && typeof baseDef.atk === 'number' && eu.atk > baseDef.atk) {
+      eu.atk = baseDef.atk;
+    }
+    if (baseDef && !(baseDef.keywords || []).includes('GUARD')) {
+      eu.keywords = eu.keywords.filter(kw => kw !== 'GUARD');
+    }
+    eu.armor = Math.min(eu.armor, eu.baseArmor);
+  }
+
   function dealDamageToUnit(G, targetOwner, targetSlot, baseDmg, sourceLabel = '', opts = {}) {
     const unit = G.players[targetOwner].board[targetSlot];
     if (!unit || baseDmg <= 0) return { actualHpLoss: 0, killed: false, totalDmg: 0, shieldBroken: false };
@@ -750,6 +787,23 @@
       addLog(G, `🌊 觸發【凌統·死戰】！凌統保留 1 點生命並獲得 +1 攻擊力（目前 ${unit.atk}）！`);
     }
 
+    if (global.Sanguo && global.Sanguo.Stats && !G.silent) {
+      if (blocked > 0) global.Sanguo.Stats.recordBlock(G, targetOwner, unit, blocked);
+      const isSelfDmg = Boolean(opts.selfDamage) || (!isNormalAttack && (sourceLabel.includes('苦肉') || sourceLabel.includes('自損')));
+      if (!isSelfDmg && hpLoss > 0) {
+        const srcOwner = typeof opts.sourceOwner === 'number' ? opts.sourceOwner : (1 - targetOwner);
+        const parsed = opts.sourceUnit ? { unit: opts.sourceUnit } : resolveDamageSourceFromLabel(sourceLabel);
+        global.Sanguo.Stats.recordDamage(G, srcOwner, targetOwner, hpLoss, {
+          unit: parsed.unit,
+          card: parsed.card,
+          targetType: 'UNIT',
+          isSkill: !isNormalAttack,
+          killed: unit.hp <= 0,
+          isBurn: Boolean(opts.isDot) || sourceLabel.includes('灼燒') || sourceLabel.includes('火')
+        });
+      }
+    }
+
     const key = `unit-${targetOwner}-${targetSlot}`;
     if (ignoreArmor && armorBefore > 0) {
       pushVfx(G, key, `-${hpLoss} (破甲!)`, 'text-amber-300');
@@ -766,16 +820,6 @@
 
     const armorNote = ignoreArmor && armorBefore > 0 ? '（破甲無視護甲）' : (blocked > 0 ? `，護甲抵擋 ${blocked}` : '');
     addLog(G, `${sourceLabel}對 ${G.players[targetOwner].name} 的【${unit.name}】造成 ${totalDmg} 點傷害${armorNote}（剩餘生命 ${Math.max(0, unit.hp)}）。`);
-
-    // 典韋【惡來】：每次受到傷害時，攻擊力 +1
-    if (unit.id === 'wei_dianwei' && !isUnitSilenced(unit) && hpLoss > 0 && unit.hp > 0) {
-      if (!isWanshaBlocking(G, targetOwner)) {
-        unit.atk += 1;
-        pushSkillAnim(G, targetOwner, unit, '惡來', '受創激怒，攻擊力 +1！', 'buff');
-        pushVfx(G, key, '+1攻(惡來)', 'text-amber-300');
-        addLog(G, `🔱【典韋·惡來】受到傷害，攻擊力永久 +1（目前 ${unit.atk}）！`);
-      }
-    }
 
     // v3.1 夏侯惇【剛烈】：每當受到傷害後，本回合攻擊力 +2（每回合限 1 次）
     if (unit.id === 'wei_xiahoudun' && !isUnitSilenced(unit) && hpLoss > 0 && unit.hp > 0 && !unit.ganglieUsedThisTurn) {
@@ -811,15 +855,30 @@
     return { actualHpLoss: hpLoss, killed: unit.hp <= 0, totalDmg, shieldBroken };
   }
 
-  function dealDamageToHero(G, targetOwner, dmg, sourceLabel = '') {
+  function dealDamageToHero(G, targetOwner, dmg, sourceLabel = '', opts = {}) {
     if (dmg <= 0) return;
     const p = G.players[targetOwner];
     p.hp -= dmg;
     pushVfx(G, `hero-${targetOwner}`, `-${dmg} 國力`, 'text-red-400');
     addLog(G, `${sourceLabel}對 ${p.name} 國力造成 ${dmg} 點傷害（剩餘國力 ${p.hp}）。`);
+    if (global.Sanguo && global.Sanguo.Stats && !G.silent) {
+      const isSelfHeroDmg = Boolean(opts.selfDamage) || (targetOwner === G.activePlayer && (sourceLabel.includes('董卓') || sourceLabel.includes('袁術') || sourceLabel.includes('黃蓋') || sourceLabel.includes('破釜') || sourceLabel.includes('李嚴') || sourceLabel.includes('疲勞')));
+      if (!isSelfHeroDmg) {
+        const srcOwner = typeof opts.sourceOwner === 'number' ? opts.sourceOwner : (1 - targetOwner);
+        const parsed = opts.sourceUnit ? { unit: opts.sourceUnit } : resolveDamageSourceFromLabel(sourceLabel);
+        global.Sanguo.Stats.recordDamage(G, srcOwner, targetOwner, dmg, {
+          unit: parsed.unit,
+          card: parsed.card,
+          targetType: 'HERO',
+          isSkill: !sourceLabel.includes('直擊')
+        });
+      }
+      global.Sanguo.Stats.recordHpChange(G);
+    }
     if (p.hp > 0 && p.hp <= 20 && !p.defenseLineTriggered) {
       p.defenseLineTriggered = true;
       p.defenseLinePending = true;
+      if (global.Sanguo && global.Sanguo.Stats && !G.silent) global.Sanguo.Stats.recordDefenseLine(G, targetOwner);
       pushVfx(G, `hero-${targetOwner}`, '🛡️觸發國力防線', 'text-amber-300');
       addLog(G, `🛡️【國力防線】${p.name} 國力首次跌至 ≤20，下個己方回合開始時將額外抽 1 張牌並獲得 +1 臨時糧草！`);
     }
@@ -832,6 +891,11 @@
     p.hp = Math.min(p.maxHp, p.hp + amt);
     const healed = p.hp - before;
     if (healed > 0) {
+      if (global.Sanguo && global.Sanguo.Stats && !G.silent) {
+        const parsed = resolveDamageSourceFromLabel(sourceLabel);
+        if (parsed.unit) global.Sanguo.Stats.recordHeal(G, targetOwner, parsed.unit, healed);
+        global.Sanguo.Stats.recordHpChange(G);
+      }
       pushVfx(G, `hero-${targetOwner}`, `+${healed} 國力`, 'text-emerald-400');
       addLog(G, `${sourceLabel}使 ${p.name} 回復 ${healed} 點國力（目前 ${p.hp}）。`);
     }
@@ -843,6 +907,10 @@
     const before = u.hp;
     u.hp = Math.min(u.maxHp, u.hp + amt);
     const healed = u.hp - before;
+    if (healed > 0 && global.Sanguo && global.Sanguo.Stats && !G.silent) {
+      const parsed = resolveDamageSourceFromLabel(sourceLabel);
+      global.Sanguo.Stats.recordHeal(G, targetOwner, parsed.unit || u, healed);
+    }
     if (healed > 0) {
       pushVfx(G, `unit-${targetOwner}-${targetSlot}`, `+${healed}❤️`, 'text-emerald-400');
       pushAnim(G, { kind: 'fx', fxType: 'heal', owner: targetOwner, slot: targetSlot });
@@ -880,6 +948,16 @@
             applyEffect(G, ownerIdx, adj, { type: 'armor_buff', val: 1, halfTurns: 2, label: '+1甲' });
           }
         }
+        break;
+      case 'wei_dianwei':
+        pushSkillAnim(G, ownerIdx, unit, '死戰', '相鄰友軍 +2 臨時護甲（1大回合），己方國力 +2！', 'shield');
+        for (const adj of [unit.slot - 1, unit.slot + 1]) {
+          if (adj >= 0 && adj < BOARD_SIZE && p.board[adj]) {
+            applyEffect(G, ownerIdx, adj, { type: 'armor_buff', val: 2, halfTurns: 2, label: '+2甲' });
+            pushVfx(G, `unit-${ownerIdx}-${adj}`, '+2🛡️(死戰)', 'text-sky-300');
+          }
+        }
+        healHero(G, ownerIdx, 2, '【典韋·死戰】');
         break;
       case 'shu_menghuo':
         if (p.hp >= 18 && p.board[unit.slot] === null) {
@@ -1132,8 +1210,8 @@
           sourceIcon: unit.icon,
           skillName: '裸衣',
           options: [
-            { id: 'xuchu_yes', label: '🐯 發動【裸衣】', desc: '自身失去 2 點生命，獲得 +2 攻擊力（變為 7/3）' },
-            { id: 'xuchu_no', label: '🛡️ 保持常態', desc: '維持原本 5/5 身材' }
+            { id: 'xuchu_luoyi', label: '🐯 裸衣猛攻', desc: '自損 2 生命、永久 +2 攻，並在本回合獲得突襲' },
+            { id: 'xuchu_guard', label: '🛡️ 虎痴護主', desc: '獲得護衛與 +2 臨時護甲（1大回合）' }
           ],
           context: { sourceSlot: slotIdx }
         };
@@ -1296,10 +1374,22 @@
           if (p.board[s]) applyEffect(G, ownerIdx, s, { type: 'atk_buff', val: 1, halfTurns: 4, label: '+1攻' });
         }
         break;
-      case 'qun_dongzhuo':
-        pushSkillAnim(G, ownerIdx, unit, '暴政', '入主洛陽，己方國力 -2！', 'skill');
-        dealDamageToHero(G, ownerIdx, 2, '【董卓·暴政】');
+      case 'qun_dongzhuo': {
+        pushSkillAnim(G, ownerIdx, unit, '暴政', '己方國力 -3，重創敵方最高攻武將 2 傷且 -1 攻！', 'burn');
+        dealDamageToHero(G, ownerIdx, 3, '【董卓·暴政】', { selfDamage: true });
+        let bestSlot = -1, bestAtk = -1;
+        for (let s = 0; s < BOARD_SIZE; s++) {
+          const eu = enemy.board[s];
+          if (eu && getUnitAtk(eu, G) > bestAtk) { bestAtk = getUnitAtk(eu, G); bestSlot = s; }
+        }
+        if (bestSlot !== -1) {
+          dealDamageToUnit(G, enemyIdx, bestSlot, 2, '【董卓·暴政】', { sourceOwner: ownerIdx, sourceUnit: unit });
+          if (enemy.board[bestSlot] && enemy.board[bestSlot].hp > 0) {
+            applyEffect(G, enemyIdx, bestSlot, { type: 'atk_buff', val: -1, halfTurns: 2, label: '暴政-1攻' });
+          }
+        }
         break;
+      }
       case 'neu_gongbing':
         pushSkillAnim(G, ownerIdx, unit, '齊射', '對敵方國力造成 1 點傷害！', 'slash');
         dealDamageToHero(G, enemyIdx, 1, '【強弩手·齊射】');
@@ -1378,16 +1468,32 @@
           if (!unit.keywords.includes('RUSH')) unit.keywords.push('RUSH');
         }
         break;
-      case 'neu_chengong':
+      case 'neu_chengong': {
+        const hasOtherAlly = p.board.some((au, idx) => au && idx !== slotIdx);
+        const opts = [];
+        if (hasOtherAlly) {
+          opts.push({ id: 'chengong_ally', label: '⚔️ 明策授計', desc: '指定一名其他友方武將，本回合 +1 攻且本次攻擊破甲' });
+        }
+        opts.push({ id: 'chengong_store', label: '🌾 屯糧入倉', desc: '往己方糧倉存入 1 點糧草' });
         if (p.reserveFood >= 1) {
-          p.reserveFood -= 1;
-          pushSkillAnim(G, ownerIdx, unit, '明策', '消耗 1 點糧倉，抽 1 張牌！', 'skill');
-          drawCard(G, ownerIdx, '陳宮·明策');
-        } else {
+          opts.push({ id: 'chengong_draw', label: '📜 耗倉抽牌', desc: '消耗 1 點糧倉，抽 1 張牌' });
+        }
+        if (opts.length === 1) {
           pushSkillAnim(G, ownerIdx, unit, '明策', '往己方糧倉存入 1 點糧草！', 'skill');
           addReserveFood(G, ownerIdx, 1, '【陳宮·明策】');
+        } else {
+          G.pendingPrompt = {
+            kind: 'CHOICE',
+            owner: ownerIdx,
+            sourceName: unit.name,
+            sourceIcon: unit.icon,
+            skillName: '明策',
+            options: opts,
+            context: { sourceSlot: slotIdx }
+          };
         }
         break;
+      }
     }
     cleanupDeadUnits(G);
     checkVictory(G);
@@ -1494,6 +1600,37 @@
         skillName: '火計',
         desc: '指定一名敵將：若已灼燒，造成 2 傷並本回合 -1 攻；若未灼燒，施加灼燒（2回合）並抽 1 張牌：',
         context: { type: 'ZHOUYU_HUOJI', sourceSlot: slotIdx, cost: 1 }
+      };
+      return true;
+    }
+
+    if (u.id === 'qun_dongzhuo') {
+      spendFood(p, 1, 'TACTIC');
+      u.activeUsedThisTurn = true;
+      u.activeUsesTotal = (u.activeUsesTotal || 0) + 1;
+      G.actedThisTurn = true;
+      playSound(G, 'playTactic');
+      triggerSimayiFanshi(G, pIdx);
+      pushSkillAnim(G, pIdx, u, '酒池', '耗國力 2 點，回 2 血、永久 +1 攻並抽 1 牌！', 'buff');
+      dealDamageToHero(G, pIdx, 2, '【董卓·酒池】', { selfDamage: true });
+      healUnit(G, pIdx, slotIdx, 2, '【董卓·酒池】');
+      buffUnitStats(G, pIdx, slotIdx, 1, 0, '【董卓·酒池】');
+      drawCard(G, pIdx, '董卓·酒池');
+      cleanupDeadUnits(G);
+      checkVictory(G);
+      return true;
+    }
+
+    if (u.id === 'wei_dianwei') {
+      if (!enemy.board.some(eu => eu !== null)) return false;
+      G.pendingPrompt = {
+        kind: 'TARGET_ENEMY',
+        owner: pIdx,
+        sourceName: u.name,
+        sourceIcon: u.icon,
+        skillName: '強襲',
+        desc: '典韋自損 1 點生命（無視護甲），對指定敵方武將造成 2 點傷害（無視護衛）',
+        context: { type: 'DIANWEI_QIANGXI', sourceSlot: slotIdx, cost: 1 }
       };
       return true;
     }
@@ -1803,12 +1940,19 @@
 
     if (prompt.kind === 'TARGET_ALLY') {
       const slot = response && typeof response.slot === 'number' ? response.slot : -1;
+      if (prompt.context && typeof prompt.context.excludeSlot === 'number' && slot === prompt.context.excludeSlot) return false;
       const au = p.board[slot];
       if (!au) return false;
       const srcUnit = p.board[prompt.context.sourceSlot];
       G.pendingPrompt = null;
       if (prompt.context.type === 'FAZHENG_SNIPE') {
         applyEffect(G, pIdx, slot, { type: 'snipe_buff', val: 1, halfTurns: 1, label: '狙擊' });
+      } else if (prompt.context.type === 'CHENGONG_MINGCE') {
+        applyEffect(G, pIdx, slot, { type: 'atk_buff', val: 1, halfTurns: 1, label: '明策+1攻' });
+        applyEffect(G, pIdx, slot, { type: 'next_attack_pierce', val: 1, halfTurns: 1, label: '本次破甲' });
+        if (srcUnit) pushSkillAnim(G, pIdx, srcUnit, '明策', `使【${au.name}】本回合 +1 攻且本次攻擊破甲！`, 'buff');
+        pushVfx(G, `unit-${pIdx}-${slot}`, '+1攻 破甲', 'text-amber-300');
+        addLog(G, `📜【陳宮·明策】使【${au.name}】本回合 +1 攻且本次攻擊獲得破甲！`);
       } else if (prompt.context.type === 'LIUSHAN_FANGQUAN') {
         if (srcUnit) {
           srcUnit.activeUsedThisTurn = true;
@@ -1910,20 +2054,14 @@
         if (p.board[prompt.context.sourceSlot]) {
           healUnit(G, pIdx, prompt.context.sourceSlot, 1, '【張角·雷擊】');
         }
+      } else if (prompt.context.type === 'DIANWEI_QIANGXI') {
+        pushSkillAnim(G, pIdx, srcUnit, '強襲', `自損 1 血，對【${eu.name}】造成 2 點傷害！`, 'slash');
+        if (p.board[prompt.context.sourceSlot]) {
+          dealDamageToUnit(G, pIdx, prompt.context.sourceSlot, 1, '【典韋·強襲自損】', { ignoreArmor: true, selfDamage: true });
+        }
+        dealDamageToUnit(G, enemyIdx, slot, 2, '【典韋·強襲】', { ignoreArmor: true, sourceOwner: pIdx, sourceUnit: srcUnit });
       } else if (prompt.context.type === 'JIAXU_WANSHA') {
-        const baseDef = CARD_DB[eu.id];
-        eu.effects = eu.effects.filter(eff => !(
-          (eff.type === 'atk_buff' && eff.val > 0) ||
-          (eff.type === 'armor_buff' && eff.val > 0) ||
-          eff.type === 'guard_buff'
-        ));
-        if (baseDef && typeof baseDef.atk === 'number' && eu.atk > baseDef.atk) {
-          eu.atk = baseDef.atk;
-        }
-        if (baseDef && !(baseDef.keywords || []).includes('GUARD')) {
-          eu.keywords = eu.keywords.filter(kw => kw !== 'GUARD');
-        }
-        eu.armor = Math.min(eu.armor, eu.baseArmor);
+        dispelPositiveBuffs(eu);
         pushSkillAnim(G, pIdx, srcUnit, '完殺', `清除敵方【${eu.name}】所有正向增益！`, 'poison');
         pushVfx(G, `unit-${enemyIdx}-${slot}`, '☠️驅散增益', 'text-purple-300');
         addLog(G, `☠️【賈詡·完殺】清除了敵方【${eu.name}】的所有正向增益（攻／甲／護衛增益）！`);
@@ -1991,13 +2129,45 @@
           drawCard(G, pIdx, '曹操·奸雄');
           addReserveFood(G, pIdx, 1, '【曹操·奸雄】');
           break;
+        case 'xuchu_luoyi':
         case 'xuchu_yes':
-          pushSkillAnim(G, pIdx, u, '裸衣', '自損 2 生命，獲得 +2 攻擊力！', 'buff');
+          pushSkillAnim(G, pIdx, u, '裸衣', '自損 2 生命、永久 +2 攻，本回合獲得突襲！', 'buff');
           u.hp = Math.max(1, u.hp - 2);
           buffUnitStats(G, pIdx, srcSlot, 2, 0, '【許褚·裸衣】');
+          u.isPrep = false;
+          applyEffect(G, pIdx, srcSlot, { type: 'rush_buff', val: 1, halfTurns: 1, label: '突襲' });
+          pushVfx(G, `unit-${pIdx}-${srcSlot}`, '🐯+2攻 突襲', 'text-amber-300');
           break;
+        case 'xuchu_guard':
         case 'xuchu_no':
-          addLog(G, `【許褚】選擇保留生命，未發動裸衣。`);
+          pushSkillAnim(G, pIdx, u, '裸衣', '選擇堅守！獲得護衛與 +2 臨時護甲（1大回合）！', 'shield');
+          applyEffect(G, pIdx, srcSlot, { type: 'guard_buff', val: 1, halfTurns: 2, label: '護衛' });
+          applyEffect(G, pIdx, srcSlot, { type: 'armor_buff', val: 2, halfTurns: 2, label: '+2甲' });
+          pushVfx(G, `unit-${pIdx}-${srcSlot}`, '🛡️護衛 +2甲', 'text-sky-300');
+          break;
+        case 'chengong_ally':
+          if (p.board.some((au, idx) => au && idx !== srcSlot)) {
+            G.pendingPrompt = {
+              kind: 'TARGET_ALLY',
+              owner: pIdx,
+              sourceName: u.name,
+              sourceIcon: u.icon,
+              skillName: '明策',
+              desc: '指定一名其他友方武將，本回合 +1 攻且本次攻擊獲得破甲',
+              context: { type: 'CHENGONG_MINGCE', sourceSlot: srcSlot, excludeSlot: srcSlot }
+            };
+          }
+          break;
+        case 'chengong_store':
+          pushSkillAnim(G, pIdx, u, '明策', '往己方糧倉存入 1 點糧草！', 'skill');
+          addReserveFood(G, pIdx, 1, '【陳宮·明策】');
+          break;
+        case 'chengong_draw':
+          if (p.reserveFood >= 1) {
+            p.reserveFood -= 1;
+            pushSkillAnim(G, pIdx, u, '明策', '消耗 1 點糧倉，抽 1 張牌！', 'skill');
+            drawCard(G, pIdx, '陳宮·明策');
+          }
           break;
         case 'xunyou_draw':
           pushSkillAnim(G, pIdx, u, '奇策', '抽 2 張牌！', 'skill');
@@ -2079,6 +2249,8 @@
     if (Array.isArray(p.playedHistory)) {
       p.playedHistory.push({ id: card.id, name: card.name, faction: card.faction, type: 'GENERAL', cost: card.cost, icon: card.icon, round: Math.max(1, Math.ceil(G.turnNumber / 2)), turn: G.turnNumber });
     }
+    pushAnim(G, { kind: 'deploy', owner: pIdx, slot: slotIdx });
+    if (global.Sanguo && global.Sanguo.Stats) global.Sanguo.Stats.recordUnitDeploy(G, pIdx, unit);
     addLog(G, `${p.name} 消耗 ${card.cost} 糧草，將【${unit.name}】部署於 ${SLOT_NAMES[slotIdx]}（${unit.isPrep ? '整備中' : '突襲就緒'}）。`);
     triggerOnPlay(G, pIdx, slotIdx, unit);
     triggerJianyingOnCardPlay(G, pIdx);
@@ -2127,6 +2299,7 @@
     }
     addLog(G, `${p.name} 消耗 ${effCost} 糧草打出謀略【${card.name}】！`);
 
+    if (global.Sanguo && global.Sanguo.Stats) global.Sanguo.Stats.recordTacticPlay(G, pIdx, card);
     // 張紘【文采】：每當我方打出謀略牌時，張紘獲得 +1/+1
     for (let s = 0; s < BOARD_SIZE; s++) {
       const u = p.board[s];
@@ -2165,6 +2338,7 @@
         for (let s = 0; s < BOARD_SIZE; s++) {
           if (p.board[s]) buffUnitStats(G, pIdx, s, 1, 1);
         }
+        healHero(G, pIdx, 2, '【桃園結義】');
         break;
       case 'shu_kongcheng':
         for (let s = 0; s < BOARD_SIZE; s++) {
@@ -2176,21 +2350,24 @@
         drawCard(G, pIdx, '空城計');
         break;
       case 'shu_jushui': {
-        // v3.1 新增：據水斷橋
+        // v3.5 更新：據水斷橋
         const au = p.board[targetSlot];
         if (au) {
           applyEffect(G, pIdx, targetSlot, { type: 'guard_buff', val: 1, halfTurns: 2, label: '護衛' });
           applyEffect(G, pIdx, targetSlot, { type: 'armor_buff', val: 2, halfTurns: 2, label: '+2甲' });
           pushVfx(G, `unit-${pIdx}-${targetSlot}`, '🛡️護衛 +2甲', 'text-sky-300');
+          let bestSlot = -1, bestAtk = -1;
+          for (let s = 0; s < BOARD_SIZE; s++) {
+            const eu = enemy.board[s];
+            if (eu && getUnitAtk(eu, G) > bestAtk) { bestAtk = getUnitAtk(eu, G); bestSlot = s; }
+          }
+          if (bestSlot !== -1) {
+            enemy.board[bestSlot].frozenNextTurn = true;
+            pushVfx(G, `unit-${enemyIdx}-${bestSlot}`, '❄️下回禁攻', 'text-sky-300');
+            addLog(G, `🌉【據水斷橋】震懾敵方【${enemy.board[bestSlot].name}】，使其下回合無法攻擊！`);
+          }
           if (au.id === 'shu_zhangfei') {
-            let bestSlot = -1, bestAtk = -1;
-            for (let s = 0; s < BOARD_SIZE; s++) {
-              const eu = enemy.board[s];
-              if (eu && getUnitAtk(eu, G) > bestAtk) { bestAtk = getUnitAtk(eu, G); bestSlot = s; }
-            }
-            if (bestSlot !== -1) {
-              dealDamageToUnit(G, enemyIdx, bestSlot, 1, '【據水斷橋·張飛】');
-            }
+            drawCard(G, pIdx, '據水斷橋·張飛');
           }
         }
         break;
@@ -2212,18 +2389,18 @@
         break;
       }
       case 'wei_xietianzi': {
-        dealDamageToHero(G, pIdx, 1, '【挾天子令諸侯】');
-        drawCard(G, pIdx, '挾天子令諸侯');
-        let bestSlot = -1, bestAtk = -1;
+        // v3.5 重製為【號令天下】
         for (let s = 0; s < BOARD_SIZE; s++) {
-          const eu = enemy.board[s];
-          if (eu && getUnitAtk(eu, G) > bestAtk) { bestAtk = getUnitAtk(eu, G); bestSlot = s; }
+          if (p.board[s]) {
+            applyEffect(G, pIdx, s, { type: 'atk_buff', val: 1, halfTurns: 1, label: '號令+1攻' });
+            pushVfx(G, `unit-${pIdx}-${s}`, '+1攻', 'text-amber-300');
+          }
+          if (enemy.board[s]) {
+            applyEffect(G, enemyIdx, s, { type: 'atk_buff', val: -1, halfTurns: 2, label: '號令-1攻' });
+            pushVfx(G, `unit-${enemyIdx}-${s}`, '-1攻', 'text-indigo-300');
+          }
         }
-        if (bestSlot !== -1) {
-          const drop = bestAtk >= 4 ? -2 : -1;
-          applyEffect(G, enemyIdx, bestSlot, { type: 'atk_buff', val: drop, halfTurns: 4, label: `${drop}攻` });
-          pushVfx(G, `unit-${enemyIdx}-${bestSlot}`, `${drop}攻`, 'text-indigo-300');
-        }
+        drawCard(G, pIdx, '號令天下');
         break;
       }
       case 'wei_duanliang': {
@@ -2261,7 +2438,7 @@
       case 'wei_quhu': {
         const res = dealDamageToUnit(G, enemyIdx, targetSlot, 3, '【驅虎吞狼】');
         const eu = enemy.board[targetSlot];
-        if (eu && eu.hp > 0) applyEffect(G, enemyIdx, targetSlot, { type: 'atk_buff', val: -1, halfTurns: 4, label: '-1攻' });
+        if (eu && eu.hp > 0) applyEffect(G, enemyIdx, targetSlot, { type: 'atk_buff', val: -2, halfTurns: 4, label: '-2攻' });
         if (res.killed) addReserveFood(G, pIdx, 1, '【驅虎吞狼擊殺】');
         break;
       }
@@ -2280,11 +2457,11 @@
         break;
       }
       case 'wu_kurouji': {
-        const res = dealDamageToUnit(G, pIdx, targetSlot, 1, '【苦肉計】');
+        const res = dealDamageToUnit(G, pIdx, targetSlot, 1, '【苦肉計】', { selfDamage: true });
         const au = p.board[targetSlot];
         if (!res.killed && au && au.hp > 0) {
           drawCard(G, pIdx, '苦肉計');
-          applyEffect(G, pIdx, targetSlot, { type: 'atk_buff', val: 1, halfTurns: 1, label: '+1攻' });
+          applyEffect(G, pIdx, targetSlot, { type: 'atk_buff', val: 2, halfTurns: 1, label: '+2攻' });
         }
         break;
       }
@@ -2292,13 +2469,14 @@
         const au = p.board[targetSlot];
         if (au) {
           au.isPrep = false;
+          applyEffect(G, pIdx, targetSlot, { type: 'shensu_kill_draw', val: 1, halfTurns: 1, label: '神速擊殺抽牌' });
           if (targetSlot !== 2) {
             applyEffect(G, pIdx, targetSlot, { type: 'atk_buff', val: 1, halfTurns: 1, label: '+1攻' });
             pushVfx(G, `unit-${pIdx}-${targetSlot}`, '神速 +1攻', 'text-emerald-300');
           } else {
             pushVfx(G, `unit-${pIdx}-${targetSlot}`, '神速就緒', 'text-emerald-300');
           }
-          addLog(G, `【兵貴神速】使【${au.name}】立即解除整備！`);
+          addLog(G, `【兵貴神速】使【${au.name}】立即解除整備，本回合擊殺敵將時抽 1 張牌！`);
         }
         break;
       }
@@ -2310,20 +2488,28 @@
         break;
       }
       case 'wu_dongfeng': {
-        // v3.1 新增：東風助火
-        const eu = enemy.board[targetSlot];
-        if (eu) {
-          const burnEffs = eu.effects.filter(e => e.type === 'burn');
-          if (burnEffs.length > 0) {
-            dealDamageToUnit(G, enemyIdx, targetSlot, 3, '【東風助火】');
-            if (eu.hp > 0) {
-              for (const b of burnEffs) b.turns = Math.max(b.turns, 2);
-              addLog(G, `🌬️【東風助火】火勢再起，刷新【${eu.name}】的灼燒時間！`);
-            }
-          } else {
-            dealDamageToUnit(G, enemyIdx, targetSlot, 1, '【東風助火】');
-            if (eu.hp > 0) applyEffect(G, enemyIdx, targetSlot, { type: 'burn', val: 1, turns: 1, label: '灼燒' });
+        // v3.5 更新：東風助火（全體灼燒引爆／鋪火）
+        const burningSlots = [];
+        for (let s = 0; s < BOARD_SIZE; s++) {
+          const eu = enemy.board[s];
+          if (eu && eu.effects.some(e => e.type === 'burn')) burningSlots.push(s);
+        }
+        if (burningSlots.length > 0) {
+          for (const s of burningSlots) {
+            dealDamageToUnit(G, enemyIdx, s, 2, '【東風助火】', { isDot: false });
+            pushAnim(G, { kind: 'fx', fxType: 'burn', owner: enemyIdx, slot: s });
           }
+          dealDamageToHero(G, enemyIdx, burningSlots.length, '【東風助火】');
+          addLog(G, `🌬️【東風助火】引爆 ${burningSlots.length} 名灼燒敵將（各 2 傷），並對敵國力造成 ${burningSlots.length} 點傷害！`);
+        } else {
+          for (let s = 0; s < BOARD_SIZE; s++) {
+            if (enemy.board[s]) {
+              applyEffect(G, enemyIdx, s, { type: 'burn', val: 1, turns: 2, label: '灼燒' });
+              pushAnim(G, { kind: 'fx', fxType: 'burn', owner: enemyIdx, slot: s });
+            }
+          }
+          drawCard(G, pIdx, '東風助火');
+          addLog(G, `🌬️【東風助火】場上無灼燒目標，改為對敵全體施加灼燒（2回合）並抽 1 張牌！`);
         }
         break;
       }
@@ -2338,9 +2524,13 @@
         }
         break;
       case 'wu_jiangdong':
-        dealDamageToHero(G, enemyIdx, 3, '【江東水師】');
+        dealDamageToHero(G, enemyIdx, 2, '【江東水師】');
         for (let s = 0; s < BOARD_SIZE; s++) {
-          if (p.board[s]) applyEffect(G, pIdx, s, { type: 'atk_buff', val: 1, halfTurns: 4, label: '+1攻' });
+          if (p.board[s]) {
+            applyEffect(G, pIdx, s, { type: 'atk_buff', val: 1, halfTurns: 4, label: '+1攻' });
+            applyEffect(G, pIdx, s, { type: 'armor_buff', val: 1, halfTurns: 4, label: '+1甲' });
+            pushVfx(G, `unit-${pIdx}-${s}`, '+1攻 +1🛡️', 'text-sky-300');
+          }
         }
         break;
       case 'qun_ertao': {
@@ -2427,16 +2617,29 @@
         }
         break;
       }
-      case 'neu_shengdong': {
-        // v3.1 新增：聲東擊西
-        const au = p.board[targetSlot];
-        if (au) {
-          applyEffect(G, pIdx, targetSlot, { type: 'snipe_buff', val: 1, halfTurns: 1, label: '狙擊' });
-          pushVfx(G, `unit-${pIdx}-${targetSlot}`, '🎯狙擊', 'text-cyan-300');
-          if (targetSlot === 1 || targetSlot === 3) {
-            drawCard(G, pIdx, '聲東擊西');
+      case 'neu_fudichouxin': {
+        // v3.5 新增：釜底抽薪
+        const eu = enemy.board[targetSlot];
+        if (eu) {
+          applyEffect(G, enemyIdx, targetSlot, { type: 'temp_silence', val: 1, halfTurns: 2, label: '沉默' });
+          dispelPositiveBuffs(eu);
+          pushVfx(G, `unit-${enemyIdx}-${targetSlot}`, '🪓沉默 驅散', 'text-purple-300');
+          addLog(G, `🪓【釜底抽薪】使敵方【${eu.name}】沉默 1 大回合並清除所有正向增益！`);
+        }
+        drawCard(G, pIdx, '釜底抽薪');
+        break;
+      }
+      case 'qun_pofuchenzhou': {
+        // v3.5 新增：破釜沈舟
+        for (let s = 0; s < BOARD_SIZE; s++) {
+          if (p.board[s]) {
+            applyEffect(G, pIdx, s, { type: 'atk_buff', val: 1, halfTurns: 1, label: '破釜+1攻' });
+            applyEffect(G, pIdx, s, { type: 'pierce_buff', val: 1, halfTurns: 1, label: '破甲' });
+            pushVfx(G, `unit-${pIdx}-${s}`, '🔥+1攻 破甲', 'text-amber-300');
           }
         }
+        p.pofuEndTurnDamage = (p.pofuEndTurnDamage || 0) + 3;
+        addLog(G, `🔥【破釜沈舟】本回合全體友軍獲得 +1 攻與破甲；回合結束時己方國力 -3！`);
         break;
       }
       case 'neu_jianyu':
@@ -2532,7 +2735,11 @@
 
       let atkDmg = getUnitAtk(attacker, G);
       const defDmg = getUnitAtk(defender, G);
-      let hasPierce = (!isUnitSilenced(attacker) && (attacker.keywords.includes('PIERCE') || attacker.effects.some(e => e.type === 'pierce_buff'))) || extraPierce;
+      const hadOneShotPierce = attacker.effects.some(e => e.type === 'next_attack_pierce');
+      let hasPierce = (!isUnitSilenced(attacker) && (attacker.keywords.includes('PIERCE') || attacker.effects.some(e => e.type === 'pierce_buff'))) || hadOneShotPierce || extraPierce;
+      if (hadOneShotPierce) {
+        attacker.effects = attacker.effects.filter(e => e.type !== 'next_attack_pierce');
+      }
 
       // v3.3 黃忠【烈弓】：攻擊受相鄰護衛保護的敵將時，傷害 +2 且無視護甲
       if (attacker.id === 'shu_huangzhong' && !isUnitSilenced(attacker) && isProtectedByAdjacentGuard(enemy.board, targetSlot)) {
@@ -2613,7 +2820,15 @@
       }
 
       cleanupDeadUnits(G);
-      if (atkRes.killed) triggerKillBonus(G, attacker, pIdx);
+      if (atkRes.killed) {
+        const shensuIdx = attacker.effects.findIndex(e => e.type === 'shensu_kill_draw');
+        if (shensuIdx !== -1) {
+          attacker.effects.splice(shensuIdx, 1);
+          drawCard(G, pIdx, '兵貴神速擊殺');
+          addLog(G, `💨【兵貴神速】${attacker.name} 本回合擊殺敵將，額外抽 1 張牌！`);
+        }
+        triggerKillBonus(G, attacker, pIdx);
+      }
       if (defRes.killed) triggerKillBonus(G, defender, enemyIdx);
       cleanupDeadUnits(G);
       checkVictory(G);
@@ -2666,6 +2881,11 @@
       G.consecutiveNoActionEmptyDeckTurns = 0;
     }
 
+    if (p.pofuEndTurnDamage > 0) {
+      const pofuDmg = p.pofuEndTurnDamage;
+      p.pofuEndTurnDamage = 0;
+      dealDamageToHero(G, pIdx, pofuDmg, '【破釜沈舟反噬】', { selfDamage: true });
+    }
     if (p.tempFood > 0) {
       addLog(G, `【結束階段】清除 ${p.name} 未使用的 ${p.tempFood} 點臨時糧草。`);
       p.tempFood = 0;
@@ -2716,7 +2936,9 @@
         pushSkillAnim(G, pIdx, u, '眾叛', '眾叛親離！回合結束己方國力 -2！', 'burn');
         dealDamageToHero(G, pIdx, 2, '【袁術·眾叛】');
       } else if (u.id === 'wei_zhonghui') {
-        if (p.reserveFood >= 2) {
+        if (!G.zhonghuiZiliUsed) G.zhonghuiZiliUsed = [false, false];
+        if (p.reserveFood >= 2 && !G.zhonghuiZiliUsed[pIdx]) {
+          G.zhonghuiZiliUsed[pIdx] = true;
           p.reserveFood -= 2;
           buffUnitStats(G, pIdx, s, 2, 2, '【鍾會·自立】');
           if (!u.keywords.includes('PIERCE')) u.keywords.push('PIERCE');

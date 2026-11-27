@@ -93,8 +93,8 @@
       flavor: '「諸葛亮北伐造木牛流馬，運糧崎嶇蜀道而不絕。」'
     },
     shu_taoyuan: {
-      id: 'shu_taoyuan', name: '桃園結義', type: 'TACTIC', faction: 'SHU', cost: 3, target: 'none', icon: '🍑',
-      text: '使所有友方武將獲得 +1/+1。',
+      id: 'shu_taoyuan', name: '桃園結義', type: 'TACTIC', faction: 'SHU', cost: 4, target: 'none', icon: '🍑',
+      text: '所有友方武將永久獲得 +1/+1，並回復己方國力 2 點。',
       flavor: '「不求同年同月同日生，但願同年同月同日死。」'
     },
     shu_kongcheng: {
@@ -104,7 +104,7 @@
     },
     shu_jushui: {
       id: 'shu_jushui', name: '據水斷橋', type: 'TACTIC', faction: 'SHU', cost: 3, target: 'ally_general', icon: '🌉',
-      text: '指定一名友方武將獲得「護衛」與 +2 臨時護甲（1大回合）；若該武將為「張飛」，額外對敵方最高攻武將造成 1 點傷害。',
+      text: '指定一名友方武將獲得「護衛」與 +2 臨時護甲（1大回合），並使敵方最高攻武將下回合無法攻擊；若目標為「張飛」，額外抽 1 張牌。',
       flavor: '「張飛據水斷橋，橫矛立馬，曹軍無人敢近。」'
     },
     shu_beifa: {
@@ -149,9 +149,10 @@
       text: '【剛烈】每當夏侯惇受到傷害後，本回合攻擊力 +2（每回合限 1 次）。'
     },
     wei_dianwei: {
-      id: 'wei_dianwei', name: '典韋', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 3, hp: 5, armor: 1,
-      keywords: ['ARMOR', 'GUARD'], icon: '🔱', skillName: '惡來',
-      text: '【惡來】每次受到傷害時，攻擊力 +1。'
+      id: 'wei_dianwei', name: '典韋', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 3, hp: 4, armor: 1,
+      keywords: ['ARMOR', 'GUARD', 'DEATHRATTLE'], icon: '🔱', skillName: '強襲・死戰',
+      activeSkill: { name: '強襲', cost: 1, maxUses: 2, desc: '每場限2次：自損1生命（無視護甲），對指定敵將造成2點傷害（無視護衛）' },
+      text: '【強襲】主動(1糧，每場限2次)：典韋自損 1 點生命（無視護甲），對指定敵方武將造成 2 點傷害（無視護衛）。【死戰】遺計：典韋陣亡時，使相鄰友軍獲得 +2 臨時護甲（1大回合），並回復己方國力 2 點。'
     },
     wei_dengai: {
       id: 'wei_dengai', name: '鄧艾', type: 'GENERAL', faction: 'WEI', cost: 4, atk: 3, hp: 3, armor: 0,
@@ -169,9 +170,9 @@
       text: '【奇策】登場（三選一）：抽 2 張牌／對敵方武將造成 3 傷／全友軍 +1/+1。'
     },
     wei_xuchu: {
-      id: 'wei_xuchu', name: '許褚', type: 'GENERAL', faction: 'WEI', cost: 5, atk: 5, hp: 5, armor: 0,
-      keywords: ['SNIPE'], icon: '🐯', skillName: '裸衣・虎痴',
-      text: '【裸衣】登場可選自損 2 生命換 +2 攻。【虎痴】攻擊時無視護衛。'
+      id: 'wei_xuchu', name: '許褚', type: 'GENERAL', faction: 'WEI', cost: 5, atk: 4, hp: 5, armor: 1,
+      keywords: ['ARMOR', 'SNIPE'], icon: '🐯', skillName: '裸衣・虎痴',
+      text: '【裸衣】登場（二選一）：① 自身自損 2 生命、永久獲得 +2 攻，並在本回合獲得突襲；② 獲得護衛與 +2 臨時護甲（1大回合）。【虎痴】狙擊，攻擊時無視護衛。'
     },
     wei_simayi: {
       id: 'wei_simayi', name: '司馬懿', type: 'GENERAL', faction: 'WEI', cost: 5, atk: 3, hp: 4, armor: 1,
@@ -190,9 +191,9 @@
       flavor: '「前有大梅林，饒子，甘酸可以解渴。」'
     },
     wei_xietianzi: {
-      id: 'wei_xietianzi', name: '挾天子令諸侯', type: 'TACTIC', faction: 'WEI', cost: 2, target: 'none', icon: '👑',
-      text: '抽 1 張牌，使敵方最高攻武將攻擊力 -1（2大回合；若其攻擊力 ≥ 4 改為 -2 攻），己方國力 -1。',
-      flavor: '「迎漢獻帝都許昌，奉天子以令不臣。」'
+      id: 'wei_xietianzi', name: '號令天下', type: 'TACTIC', faction: 'WEI', cost: 3, target: 'none', icon: '👑',
+      text: '全友軍本回合 +1 攻，敵全體武將 -1 攻（1大回合），並抽 1 張牌。',
+      flavor: '「奉天子以令不臣，號令天下莫敢不從。」'
     },
     wei_duanliang: {
       id: 'wei_duanliang', name: '斷糧奇兵', type: 'TACTIC', faction: 'WEI', cost: 2, target: 'none', icon: '🔥',
@@ -206,7 +207,7 @@
     },
     wei_quhu: {
       id: 'wei_quhu', name: '驅虎吞狼', type: 'TACTIC', faction: 'WEI', cost: 3, target: 'enemy_general', icon: '🐯',
-      text: '指定一名敵方武將造成 3 點傷害，並使其攻擊力 -1（持續 2 大回合）；若擊殺目標，往己方糧倉存入 1 點糧草。',
+      text: '指定一名敵方武將造成 3 點傷害，並使其攻擊力 -2（持續 2 大回合）；若擊殺目標，往己方糧倉存入 1 點糧草。',
       flavor: '「荀彧獻二虎競食、驅虎吞狼之計，令劉備呂布自相殘殺。」'
     },
     wei_guandu: {
@@ -283,12 +284,12 @@
     },
     wu_kurouji: {
       id: 'wu_kurouji', name: '苦肉計', type: 'TACTIC', faction: 'WU', cost: 1, target: 'ally_general', icon: '🩸',
-      text: '指定一名友方武將受到 1 點傷害；若其存活，抽 1 張牌並獲得 +1 攻（本回合）。',
+      text: '指定一名友方武將受到 1 點傷害；若其存活，抽 1 張牌並獲得 +2 攻（本回合）。',
       flavor: '「周瑜打黃蓋，一個願打，一個願挨。」'
     },
     wu_shensu: {
       id: 'wu_shensu', name: '兵貴神速', type: 'TACTIC', faction: 'WU', cost: 1, target: 'ally_general', icon: '💨',
-      text: '使一名友方武將立即解除整備（空場亦可直擊國力）；非中軍格額外 +1 攻。',
+      text: '使一名友方武將立即解除整備（非中軍格額外 +1 攻）；若其本回合擊殺敵將，抽 1 張牌。',
       flavor: '「江東水師乘風破浪，出其不意直搗敵營。」'
     },
     wu_lianhuan: {
@@ -297,8 +298,8 @@
       flavor: '「龐統獻連環鐵索鎖戰船，為赤壁大火鋪下絕境。」'
     },
     wu_dongfeng: {
-      id: 'wu_dongfeng', name: '東風助火', type: 'TACTIC', faction: 'WU', cost: 3, target: 'enemy_general', icon: '🌬️',
-      text: '指定一名敵方武將：若其已灼燒，造成 3 點傷害並刷新灼燒持續時間；若未灼燒，造成 1 點傷害並施加灼燒（1回合）。',
+      id: 'wu_dongfeng', name: '東風助火', type: 'TACTIC', faction: 'WU', cost: 2, target: 'none', icon: '🌬️',
+      text: '對所有已灼燒敵將造成 2 點傷害，並對敵方國力造成「灼燒武將數」點傷害；若場上無灼燒敵將，改為敵全體灼燒（2回合）並抽 1 張牌。',
       flavor: '「東風既起，火借風勢，赤壁一炬破曹軍。」'
     },
     wu_huogong: {
@@ -308,7 +309,7 @@
     },
     wu_jiangdong: {
       id: 'wu_jiangdong', name: '江東水師', type: 'TACTIC', faction: 'WU', cost: 4, target: 'none', icon: '⛵',
-      text: '對敵方國力造成 3 點傷害，並使所有友方武將獲得 +1 攻擊力（持續 2 大回合）。',
+      text: '對敵方國力造成 2 點傷害，並使所有友方武將獲得 +1 攻及 +1 臨時護甲（持續 2 大回合）。',
       flavor: '「樓船千艘列江岸，江東精銳莫敢當。」'
     },
 
@@ -374,9 +375,10 @@
       text: '【亂擊】登場：對敵全體造成 1 傷，友方全體 +1 攻（持續 2 大回合）。'
     },
     qun_dongzhuo: {
-      id: 'qun_dongzhuo', name: '董卓', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 4, hp: 6, armor: 1,
-      keywords: ['ARMOR'], icon: '👹', skillName: '暴政',
-      text: '【暴政】登場：己方國力 -2。'
+      id: 'qun_dongzhuo', name: '董卓', type: 'GENERAL', faction: 'QUN', cost: 5, atk: 4, hp: 5, armor: 1,
+      keywords: ['ARMOR'], icon: '👹', skillName: '暴政・酒池',
+      activeSkill: { name: '酒池', cost: 1, maxUses: 2, desc: '每場限2次：消耗己方2點國力，回復董卓2點生命、永久+1攻並抽1張牌' },
+      text: '【暴政】登場：己方國力 -3，對敵方最高攻武將造成 2 點傷害並使其 -1 攻（1大回合）。【酒池】主動(1糧，每場限2次)：消耗己方 2 點國力，回復董卓 2 點生命、使其永久 +1 攻並抽 1 張牌。'
     },
     qun_lubu: {
       id: 'qun_lubu', name: '呂布', type: 'GENERAL', faction: 'QUN', cost: 7, atk: 6, hp: 6, armor: 0,
@@ -408,6 +410,11 @@
       text: '對敵方所有武將造成 2 點傷害，並對敵方國力造成 2 點傷害。',
       flavor: '「董卓遷都長安，縱火焚燒洛陽宮室，千里焦土。」'
     },
+    qun_pofuchenzhou: {
+      id: 'qun_pofuchenzhou', name: '破釜沈舟', type: 'TACTIC', faction: 'QUN', cost: 2, target: 'none', icon: '🔥',
+      text: '本回合所有友方武將獲得 +1 攻與破甲；本回合結束時，己方國力 -3。',
+      flavor: '「破釜沈舟，百二秦關終屬楚；背水死戰，不破敵陣誓不還。」'
+    },
 
     // ==========================================
     // 中立 NEUTRAL (6 Generals + 7 Tactics = 13 cards)
@@ -429,7 +436,7 @@
     wei_zhonghui: {
       id: 'wei_zhonghui', name: '鍾會', type: 'GENERAL', faction: 'WEI', cost: 3, atk: 3, hp: 3, armor: 0,
       keywords: ['SHROUD'], icon: '🗡️', skillName: '自立',
-      text: '【自立】帷幕。回合結束時，若己方糧倉 ≥ 2，消耗 2 點糧倉，使鍾會永久獲得 +2/+2、破甲並抽 1 張牌。'
+      text: '【自立】帷幕。回合結束時，若己方糧倉 ≥ 2，消耗 2 點糧倉，使鍾會永久獲得 +2/+2、破甲並抽 1 張牌（每場遊戲限觸發 1 次）。'
     },
     wei_lidian: {
       id: 'wei_lidian', name: '李典', type: 'GENERAL', faction: 'WEI', cost: 2, atk: 1, hp: 4, armor: 1,
@@ -529,9 +536,9 @@
       text: '【遊擊】高機動突襲先鋒。'
     },
     neu_chengong: {
-      id: 'neu_chengong', name: '陳宮', type: 'GENERAL', faction: 'NEU', cost: 2, atk: 2, hp: 2, armor: 0,
+      id: 'neu_chengong', name: '陳宮', type: 'GENERAL', faction: 'NEU', cost: 2, atk: 2, hp: 3, armor: 0,
       keywords: [], icon: '📜', skillName: '明策',
-      text: '【明策】登場：若糧倉 ≥ 1，耗 1 糧倉抽 1 牌；否則存入 1 糧倉。'
+      text: '【明策】登場（二選一）：① 指定一名其他友方武將，本回合獲得 +1 攻且本次攻擊獲得破甲（無其他友軍則不可選）；② 自選「往己方糧倉存入 1 點糧草」或「消耗 1 點糧倉抽 1 張牌」。'
     },
     neu_dunbing: {
       id: 'neu_dunbing', name: '重甲盾衛', type: 'GENERAL', faction: 'NEU', cost: 3, atk: 1, hp: 5, armor: 2,
@@ -569,10 +576,10 @@
       text: '指定一名敵方武將，清除其當前護甲並造成 2 點傷害。',
       flavor: '「連弩穿鐵甲，百步破堅陣。」'
     },
-    neu_shengdong: {
-      id: 'neu_shengdong', name: '聲東擊西', type: 'TACTIC', faction: 'NEU', cost: 2, target: 'ally_general', icon: '🧭',
-      text: '指定一名友方武將，本回合獲得「狙擊」；若其位於 2 號位或 4 號位，抽 1 張牌。',
-      flavor: '「聲言東擊，實則西取，敵不能測。」'
+    neu_fudichouxin: {
+      id: 'neu_fudichouxin', name: '釜底抽薪', type: 'TACTIC', faction: 'NEU', cost: 2, target: 'enemy_general', icon: '🪓',
+      text: '指定一名敵方武將，使其沉默（失去技能）1 大回合並清除所有正向增益（攻／護甲／護衛增益），並抽 1 張牌。',
+      flavor: '「揚湯止沸，不如釜底抽薪。」'
     },
     neu_jianyu: {
       id: 'neu_jianyu', name: '萬箭齊發', type: 'TACTIC', faction: 'NEU', cost: 3, target: 'none', icon: '🏹',
@@ -596,7 +603,7 @@
       'shu_taoyuan', 'shu_jushui',
       'shu_kongcheng', 'shu_beifa',
       'neu_bubing', 'neu_bubing',
-      'shu_guagu', 'neu_shengdong',
+      'shu_guagu', 'neu_fudichouxin',
       'neu_pojia', 'neu_huanwei'
     ],
     WEI: [
@@ -630,7 +637,7 @@
       'wu_dongfeng', 'wu_huogong',
       'wu_huogong', 'wu_jiangdong',
       'wu_kurouji', 'neu_tuntian',
-      'neu_shengdong', 'neu_anfuminxin',
+      'neu_fudichouxin', 'neu_anfuminxin',
       'neu_pojia', 'neu_jianyu'
     ],
     QUN: [

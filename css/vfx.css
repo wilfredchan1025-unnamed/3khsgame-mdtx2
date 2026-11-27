@@ -1,0 +1,208 @@
+/* ===== 《三國·謀定天下》v3.5 戰鬥視覺特效與結算高光雙主題樣式 ===== */
+
+:root {
+  --vfx-ink: #6366f1;
+  --vfx-fire: #fb923c;
+  --vfx-gold: #facc15;
+  --vfx-crimson: #ef4444;
+  --vfx-callout-bg: rgba(13, 16, 24, 0.88);
+  --vfx-callout-text: #fde68a;
+  --recap-card-bg: rgba(15, 23, 42, 0.78);
+  --recap-card-border: rgba(212, 175, 55, 0.42);
+  --recap-subtext: #cbd5e1;
+}
+
+body.theme-light {
+  --vfx-ink: #1e293b;
+  --vfx-fire: #c2410c;
+  --vfx-gold: #b45309;
+  --vfx-crimson: #b91c1c;
+  --vfx-callout-bg: rgba(248, 241, 227, 0.94);
+  --vfx-callout-text: #7c2d12;
+  --recap-card-bg: rgba(248, 241, 227, 0.92);
+  --recap-card-border: rgba(146, 64, 14, 0.38);
+  --recap-subtext: #475569;
+}
+
+.vfx-canvas-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 65;
+}
+
+/* 戰場微幅震動 */
+@keyframes vfxShakeNormal {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(-4px, 2px, 0); }
+  55% { transform: translate3d(4px, -2px, 0); }
+  80% { transform: translate3d(-2px, 1px, 0); }
+}
+
+@keyframes vfxShakeHeavy {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20% { transform: translate3d(-7px, 3px, 0); }
+  45% { transform: translate3d(7px, -3px, 0); }
+  70% { transform: translate3d(-5px, 2px, 0); }
+  88% { transform: translate3d(3px, -1px, 0); }
+}
+
+.vfx-shake-normal {
+  animation: vfxShakeNormal 0.14s ease-out;
+}
+
+.vfx-shake-heavy {
+  animation: vfxShakeHeavy 0.2s ease-out;
+}
+
+/* 武將登場落地彈跳 */
+@keyframes vfxDeployPop {
+  0% { transform: scale(1.16) translateY(-8px); box-shadow: 0 0 20px var(--vfx-gold); }
+  65% { transform: scale(0.97) translateY(2px); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+.vfx-deploy-pop {
+  animation: vfxDeployPop 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 受擊、灼燒、暗墨閃光 */
+@keyframes vfxHitFlash {
+  0% { filter: brightness(1.45); box-shadow: 0 0 22px var(--vfx-crimson); }
+  100% { filter: brightness(1); }
+}
+
+@keyframes vfxBurnFlash {
+  0% { box-shadow: 0 0 0 2px var(--vfx-fire), 0 0 24px var(--vfx-fire); }
+  100% { box-shadow: none; }
+}
+
+@keyframes vfxInkFlash {
+  0% { box-shadow: 0 0 0 2px var(--vfx-ink), 0 0 26px var(--vfx-ink); filter: saturate(0.45); }
+  100% { box-shadow: none; filter: saturate(1); }
+}
+
+.vfx-hit-flash { animation: vfxHitFlash 0.25s ease-out; }
+.vfx-burn-flash { animation: vfxBurnFlash 0.45s ease-out; }
+.vfx-ink-flash { animation: vfxInkFlash 0.42s ease-out; }
+
+/* 國力防線補償紅光脈衝與賈詡亂武暗角 */
+body.vfx-defense-pulse::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  box-shadow: inset 0 0 70px 14px rgba(220, 38, 38, 0.55);
+  animation: vfxEdgeFade 0.9s ease-out forwards;
+}
+
+body.vfx-luanwu-vignette::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  box-shadow: inset 0 0 90px 24px rgba(30, 27, 75, 0.72);
+  animation: vfxEdgeFade 0.65s ease-out forwards;
+}
+
+@keyframes vfxEdgeFade {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 武將登場與招牌技水墨浮字台詞 */
+@keyframes vfxCalloutPop {
+  0% { opacity: 0; transform: translate(-50%, -12px) scale(0.9); }
+  18% { opacity: 1; transform: translate(-50%, 0) scale(1.03); }
+  78% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -14px) scale(0.96); }
+}
+
+.vfx-callout {
+  position: fixed;
+  top: 16%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  pointer-events: none;
+  padding: 0.45rem 1.25rem;
+  border-radius: 9999px;
+  background: var(--vfx-callout-bg);
+  color: var(--vfx-callout-text);
+  border: 1.5px solid var(--vfx-gold);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+  animation: vfxCalloutPop 1.12s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.vfx-callout-fire { border-color: var(--vfx-fire); }
+.vfx-callout-ink { border-color: var(--vfx-ink); }
+.vfx-callout-crimson { border-color: var(--vfx-crimson); }
+
+/* ===== 結算高光回顧卡片（適配深墨夜戰與宣紙水墨雙主題） ===== */
+.recap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  text-align: left;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 640px) {
+  .recap-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recap-card {
+  background: var(--recap-card-bg);
+  border: 1px solid var(--recap-card-border);
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  transition: transform 0.15s ease;
+}
+
+.recap-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--recap-subtext);
+  margin-bottom: 0.25rem;
+}
+
+.recap-value {
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.recap-sub {
+  font-size: 0.74rem;
+  color: var(--recap-subtext);
+  margin-top: 0.22rem;
+}
+
+.recap-seal {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.08rem 0.42rem;
+  border-radius: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: rgba(185, 28, 28, 0.22);
+  color: #fca5a5;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+}
+
+body.theme-light .recap-seal {
+  background: rgba(185, 28, 28, 0.12);
+  color: #991b1b;
+  border-color: rgba(185, 28, 28, 0.45);
+}
