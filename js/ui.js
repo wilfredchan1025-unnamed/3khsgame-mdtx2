@@ -352,32 +352,40 @@
         body.theme-light #app > :not(.fixed) [class*="text-purple-300"] {
           color: #3730a3 !important;
         }
-        /* 卡牌費用球（糧草不足時 bg-slate-700）：改為淺紅宣紙底配深朱砂紅字；夠糧時維持金底黑字 */
+        /* 卡牌費用球（bg-slate-700）與整備中標籤（bg-slate-700/80）：淺宣紙底配深字高對比 */
         body.theme-light #app > :not(.fixed) .bg-slate-700 {
           background-color: #f3e2d4 !important;
           color: #9f1239 !important;
           border: 1px solid rgba(159, 18, 57, 0.35);
         }
+        body.theme-light #app > :not(.fixed) [class*="bg-slate-700/"] {
+          background-color: #e6dcc6 !important;
+          color: #334155 !important;
+          border: 1px solid rgba(100, 116, 139, 0.45);
+        }
         body.theme-light #app > :not(.fixed) .bg-amber-400 {
           background-color: #f59e0b !important;
           color: #111827 !important;
         }
-        /* 國力防線≤20、深色陣營徽章（蜀/魏/吳/群）與深色功能鈕一律強制白字高對比 */
-        body.theme-light #app > :not(.fixed) [class*="bg-sky-950"],
+        /* 所有深色 900/950 徽章與標籤（含司馬懿權謀、灼燒、減益、緩兵、防線≤20、陣營章與功能鈕）一律強制純白字高對比 */
+        body.theme-light #app > :not(.fixed) [class*="-950"],
         body.theme-light #app > :not(.fixed) [class*="bg-sky-900"],
         body.theme-light #app > :not(.fixed) [class*="bg-red-900"],
         body.theme-light #app > :not(.fixed) [class*="bg-blue-900"],
         body.theme-light #app > :not(.fixed) [class*="bg-emerald-900"],
         body.theme-light #app > :not(.fixed) [class*="bg-purple-900"],
-        body.theme-light #app > :not(.fixed) [class*="bg-indigo-950"],
         body.theme-light #app > :not(.fixed) [class*="bg-indigo-900"],
-        body.theme-light #app > :not(.fixed) [class*="bg-rose-950"],
-        body.theme-light #app > :not(.fixed) [class*="bg-emerald-950"],
+        body.theme-light #app > :not(.fixed) [class*="bg-orange-900"],
         body.theme-light #app > :not(.fixed) [class*="bg-indigo-500"],
         body.theme-light #app > :not(.fixed) [class*="bg-emerald-600"],
         body.theme-light #app > :not(.fixed) [class*="bg-rose-600"],
         body.theme-light #app > :not(.fixed) [class*="from-indigo-500"] {
           color: #ffffff !important;
+        }
+        /* 避免把 bg-slate-950 宣紙容器誤設成白字（恢復深墨字） */
+        body.theme-light #app > :not(.fixed) [class*="bg-slate-950"],
+        body.theme-light #app > :not(.fixed) [class*="text-slate-950"] {
+          color: #1c222b !important;
         }
         body.theme-light #app > :not(.fixed) [class*="bg-amber-500/20"],
         body.theme-light #app > :not(.fixed) [class*="bg-amber-500/25"] {
