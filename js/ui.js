@@ -186,26 +186,39 @@
       const tStyle = document.createElement('style');
       tStyle.id = 'sanguo-v34-theme';
       tStyle.textContent = `
+        /* 僅讓內層 #app 與內層 .bg-battlefield 透明，絕不覆蓋 body 本身的水墨底圖 */
         body.theme-dark #app,
         body.theme-light #app,
-        body.theme-dark .bg-battlefield,
-        body.theme-light .bg-battlefield,
-        body.theme-dark.bg-battlefield,
-        body.theme-light.bg-battlefield {
+        body.theme-dark #app .bg-battlefield,
+        body.theme-light #app .bg-battlefield {
           background: transparent !important;
           background-image: none !important;
         }
-        body.theme-dark {
-          background-color: #0d1016 !important;
+
+        /* ===== 深墨夜戰模式（高優先權，同時涵蓋 body.bg-battlefield） ===== */
+        body.theme-dark,
+        body.theme-dark.bg-battlefield {
+          background-color: #0b0f18 !important;
           background-image:
-            linear-gradient(180deg, rgba(10, 14, 24, 0.30) 0%, rgba(10, 14, 24, 0.48) 100%),
+            linear-gradient(180deg, rgba(10, 14, 24, 0.28) 0%, rgba(10, 14, 24, 0.46) 100%),
             url('./assets/lobby_dark.jpg') !important;
           background-size: cover !important;
           background-position: center !important;
           background-attachment: fixed !important;
+          color: #f1ede4 !important;
+        }
+        body.theme-dark #app .ink-surface {
+          background-color: rgba(16, 21, 32, 0.90) !important;
           color: #f1ede4;
         }
-        body.theme-light {
+        body.theme-dark #app [class*="bg-amber-500/20"] {
+          background-color: rgba(180, 120, 20, 0.34) !important;
+          color: #fef08a !important;
+        }
+
+        /* ===== 宣紙水墨模式（高優先權，同時涵蓋 body.bg-battlefield） ===== */
+        body.theme-light,
+        body.theme-light.bg-battlefield {
           background-color: #efe5d2 !important;
           background-image:
             linear-gradient(180deg, rgba(248, 241, 227, 0.22) 0%, rgba(238, 226, 204, 0.36) 100%),
@@ -215,20 +228,22 @@
           background-attachment: fixed !important;
           color: #1c222b !important;
         }
+
         .lobby-ink-hero {
           background-size: cover !important;
           background-position: center !important;
         }
         body.theme-dark .lobby-ink-hero {
           background-image:
-            linear-gradient(180deg, rgba(13, 18, 30, 0.32) 0%, rgba(19, 24, 34, 0.74) 100%),
+            linear-gradient(180deg, rgba(13, 18, 30, 0.30) 0%, rgba(19, 24, 34, 0.72) 100%),
             url('./assets/lobby_dark.jpg') !important;
         }
         body.theme-light .lobby-ink-hero {
           background-image:
-            linear-gradient(180deg, rgba(252, 247, 236, 0.42) 0%, rgba(246, 237, 219, 0.84) 100%),
+            linear-gradient(180deg, rgba(252, 247, 236, 0.40) 0%, rgba(246, 237, 219, 0.84) 100%),
             url('./assets/lobby_light.jpg') !important;
         }
+
         .battle-ink-bg {
           background-size: cover !important;
           background-position: center !important;
@@ -236,7 +251,7 @@
         }
         body.theme-dark .battle-ink-bg {
           background-image:
-            linear-gradient(180deg, rgba(10, 14, 22, 0.16) 0%, rgba(10, 14, 22, 0.26) 100%),
+            linear-gradient(180deg, rgba(10, 14, 22, 0.14) 0%, rgba(10, 14, 22, 0.24) 100%),
             url('./assets/board_dark.jpg') !important;
         }
         body.theme-light .battle-ink-bg {
@@ -244,6 +259,7 @@
             linear-gradient(180deg, rgba(250, 244, 232, 0.14) 0%, rgba(242, 233, 214, 0.24) 100%),
             url('./assets/board_light.jpg') !important;
         }
+
         .ink-card-back {
           background-image: url('./assets/card_back.jpg') !important;
           background-size: cover !important;
@@ -252,10 +268,10 @@
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
         }
 
-        /* ===== 淺色宣紙主題（僅作用於 #app，不影響深色彈窗 #modal-root）高對比適配 ===== */
+        /* ===== 淺色宣紙主題高對比適配（僅作用於 #app，不影響深色彈窗 #modal-root） ===== */
         body.theme-light #app .ink-surface,
         body.theme-light #app .ink-header {
-          background-color: rgba(251, 246, 235, 0.92) !important;
+          background-color: rgba(251, 246, 235, 0.93) !important;
           border-color: rgba(154, 118, 56, 0.48) !important;
           color: #1c222b !important;
         }
@@ -268,8 +284,8 @@
         body.theme-light #app [class*="bg-[#111622]"],
         body.theme-light #app [class*="bg-[#151a25]"],
         body.theme-light #app [class*="bg-[#151b26]"] {
-          background-color: rgba(246, 238, 222, 0.90) !important;
-          border-color: rgba(154, 118, 56, 0.42) !important;
+          background-color: rgba(246, 238, 222, 0.92) !important;
+          border-color: rgba(154, 118, 56, 0.44) !important;
           color: #1c222b !important;
         }
         body.theme-light #app .ink-card-unit,
@@ -285,7 +301,6 @@
           -webkit-text-fill-color: #78350f !important;
           text-shadow: 0 1px 10px rgba(255, 250, 238, 0.95);
         }
-        /* 文字高對比覆寫（深墨、深褐、深翠、深靛、朱砂） */
         body.theme-light #app .text-slate-100,
         body.theme-light #app .text-slate-200,
         body.theme-light #app .text-amber-50,
@@ -321,18 +336,25 @@
         body.theme-light #app .text-purple-300 {
           color: #3730a3 !important;
         }
-        /* 保留陣營徽章與實心主按鈕的清晰白字／深字對比 */
-        body.theme-light #app .bg-red-900\/90,
-        body.theme-light #app .bg-blue-900\/90,
-        body.theme-light #app .bg-emerald-900\/90,
-        body.theme-light #app .bg-purple-900\/90 {
-          color: #f8fafc !important;
-        }
-        body.theme-light #app .bg-indigo-500,
-        body.theme-light #app .bg-emerald-600,
-        body.theme-light #app .bg-rose-600,
-        body.theme-light #app .from-indigo-500 {
+        /* 修正：淺色模式下，深色陣營徽章（蜀/魏/吳/群）與深色功能鈕（基本遊戲教學/退出）一律強制白字高對比 */
+        body.theme-light #app [class*="bg-red-900"],
+        body.theme-light #app [class*="bg-blue-900"],
+        body.theme-light #app [class*="bg-emerald-900"],
+        body.theme-light #app [class*="bg-purple-900"],
+        body.theme-light #app [class*="bg-indigo-950"],
+        body.theme-light #app [class*="bg-indigo-900"],
+        body.theme-light #app [class*="bg-rose-950"],
+        body.theme-light #app [class*="bg-emerald-950"],
+        body.theme-light #app [class*="bg-indigo-500"],
+        body.theme-light #app [class*="bg-emerald-600"],
+        body.theme-light #app [class*="bg-rose-600"],
+        body.theme-light #app [class*="from-indigo-500"] {
           color: #ffffff !important;
+        }
+        body.theme-light #app [class*="bg-amber-500/20"] {
+          background-color: rgba(245, 158, 11, 0.28) !important;
+          color: #78350f !important;
+          border-color: #d97706 !important;
         }
       `;
       document.head.appendChild(tStyle);
