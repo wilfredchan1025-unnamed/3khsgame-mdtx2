@@ -710,14 +710,47 @@
     }
 
     if (G.phase === 'MAIN' && G.players[G.activePlayer].isAI) {
-      const delay = UI._nextAiDelay || 720;
-      UI._nextAiDelay = 720;
+      // 若場上有需要人類玩家回應的彈窗（例如敵方賈詡【亂武】），暫停 AI 排程等待玩家回應
+      if (G.pendingPrompt && !G.players[G.pendingPrompt.owner].isAI) return;
+
+      const delay = UI._nextAiDelay || 620;
+      UI._nextAiDelay = 620;
+      if (UI._aiTurnTracker !== G.turnNumber) {
+        UI._aiTurnTracker = G.turnNumber;
+        UI._aiStepsThisTurn = 0;
+      }
       UI.aiTimer = setTimeout(() => {
-        const acted = runAIStep(G);
+        UI.aiTimer = null;
+        if (!UI.G || UI.G !== G || G.phase !== 'MAIN' || !G.players[G.activePlayer].isAI) return;
+        if (G.pendingPrompt && !G.players[G.pendingPrompt.owner].isAI) return;
+
+        UI._aiStepsThisTurn = (UI._aiStepsThisTurn || 0) + 1;
+        let acted = false;
+        try {
+          if (UI._aiStepsThisTurn > 22) {
+            if (G.pendingPrompt && G.players[G.pendingPrompt.owner].isAI) G.pendingPrompt = null;
+            endTurn(G);
+            acted = false;
+          } else {
+            acted = runAIStep(G);
+          }
+        } catch (err) {
+          console.error('[AI Step Error]', err);
+          if (G.pendingPrompt && G.players[G.pendingPrompt.owner].isAI) G.pendingPrompt = null;
+          endTurn(G);
+          acted = false;
+        }
+
+        // 防卡死保底：若 AI 步驟回傳未行動、沒有待人類回應的彈窗、卻仍停在 AI 回合，強制結束 AI 回合把控制權交還玩家
+        if (!acted && G.phase === 'MAIN' && G.players[G.activePlayer].isAI && !(G.pendingPrompt && !G.players[G.pendingPrompt.owner].isAI)) {
+          if (G.pendingPrompt && G.players[G.pendingPrompt.owner].isAI) G.pendingPrompt = null;
+          endTurn(G);
+        }
+
         const hadTactic = Boolean(G.animEvents && G.animEvents.some(a => a.kind === 'tactic'));
         render();
-        if (acted && G.phase === 'MAIN' && G.players[G.activePlayer].isAI) {
-          UI._nextAiDelay = hadTactic ? 1550 : 820;
+        if (G.phase === 'MAIN' && G.players[G.activePlayer].isAI && !(G.pendingPrompt && !G.players[G.pendingPrompt.owner].isAI)) {
+          UI._nextAiDelay = hadTactic ? 1350 : 680;
           scheduleAITurnIfNeeded();
         }
       }, delay);
@@ -841,6 +874,56 @@
 
     const faqHtml = `
       <div class="space-y-3 text-xs sm:text-sm">
+        <div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/35 space-y-2.5">
+          <div class="font-bold text-amber-300 text-sm">📚 全 9 大關鍵字詳細說明與實戰舉例</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-200 leading-relaxed">
+            <div class="p-2.5 rounded-lg bg-slate-900/85 border border-slate-700/80">
+              <div class="mb-1">${keywordBadgeHtml('GUARD')} <b class="text-indigo-200">保護左右相鄰友軍</b></div>
+              保護與自身左右相鄰（各 1 格）的非護衛友軍免受敵方普通攻擊。<br/>
+              <span class="text-slate-400">例：<b>曹仁</b>站 3 號位時，敵方普通攻擊不能打 2 號位或 4 號位友軍，必須先擊破曹仁。</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/85 border border-slate-700/80">
+              <div class="mb-1">${keywordBadgeHtml('ARMOR')} <b class="text-sky-200">抵銷普通攻擊傷害</b></div>
+              每次受到<b>普通攻擊</b>時先扣除護甲值，且己方回合開始會重置；<b>謀略、技能與灼燒無視護甲</b>。<br/>
+              <span class="text-slate-400">例：<b>于禁</b>有 2 點護甲，受到 3 攻普攻只扣 1 點血；但吃 3 傷【鐵騎突襲】會直接扣 3 血。</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/85 border border-slate-700/80">
+              <div class="mb-1">${keywordBadgeHtml('PIERCE')} <b class="text-orange-200">普攻無視護甲</b></div>
+              發動普通攻擊時完全無視目標護甲，直接扣除生命值。<br/>
+              <span class="text-slate-400">例：<b>關羽</b>（5 攻破甲）攻擊帶 2 護甲的曹仁，仍直接造成全額 5 點傷害。</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/85 border border-slate-700/80">
+              <div class="mb-1">${keywordBadgeHtml('RUSH')} <b class="text-emerald-200">登場即可攻擊</b></div>
+              部署上場當回合不進入「整備中」，可立刻攻擊敵方武將（敵方空場時亦可直擊國力）。<br/>
+              <span class="text-slate-400">例：<b>張飛</b>、<b>馬超</b>上場當回合即可立即出手解場（註：鄧艾登場當回合不可直擊國力）。</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/85 border border-slate-700/80">
+              <div class="mb-1">${keywordBadgeHtml('COMBO')} <b class="text-amber-200">每回合可攻擊兩次</b></div>
+              解除整備後，單一己方回合內最多可主動發動 2 次普通攻擊。<br/>
+              <span class="text-slate-400">例：<b>趙雲</b>、<b>孫策</b>可以先擊破敵方護衛，再立刻發動第二次攻擊直擊敵方主將或國力。</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/85 border border-slate-700/80">
+              <div class="mb-1">${keywordBadgeHtml('KILL')} <b class="text-rose-200">擊殺敵將觸發獎勵</b></div>
+              無論主動攻擊或防守反擊，只要擊殺敵方武將便會觸發專屬效果。<br/>
+              <span class="text-slate-400">例：<b>關羽</b>擊殺敵將後抽 1 牌並打敵國力 1 傷；<b>呂布</b>斬殺後本回合可額外再攻 1 次並打敵國力 2 傷。</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/85 border border-slate-700/80">
+              <div class="mb-1">${keywordBadgeHtml('DEATHRATTLE')} <b class="text-purple-200">陣亡時觸發效果</b></div>
+              武將生命值歸零陣亡進入墓地時自動發動（若先被沉默則不會觸發）。<br/>
+              <span class="text-slate-400">例：<b>郭嘉</b>陣亡時抽 1～2 張牌；<b>張角</b>陣亡時對敵全體武將造成 1 點傷害。</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/85 border border-slate-700/80">
+              <div class="mb-1">${keywordBadgeHtml('SNIPE')} <b class="text-cyan-200">普攻無視護衛保護</b></div>
+              普通攻擊可繞過敵方相鄰護衛，直接瞄準任意一名存活敵方武將。<br/>
+              <span class="text-slate-400">例：<b>黃忠</b>可直接越過王平狙擊後排的諸葛亮，且打受護衛保護目標額外 +2 傷並無視護甲。</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/85 border border-slate-700/80 sm:col-span-2">
+              <div class="mb-1">${keywordBadgeHtml('SHROUD')} <b class="text-fuchsia-200">無法成為指向性謀略目標</b></div>
+              不能被任何「指定單一武將」的謀略牌選為目標（但仍會受到全體謀略牌、普通攻擊與武將技能影響）。<br/>
+              <span class="text-slate-400">例：<b>諸葛亮</b>、<b>陸遜</b>、<b>曹操</b>、<b>賈詡</b>不能被【出師北伐】或【驅虎吞狼】指定，但仍會吃到【火燒赤壁】的全體傷害。</span>
+            </div>
+          </div>
+        </div>
         <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
           <div class="font-bold text-amber-300">Q1：什麼是 v3.4 新增的「國力防線補償」？會重複觸發嗎？</div>
           <p class="text-slate-300 mt-1 leading-relaxed">當任一方國力<b>首次跌至 ≤ 20</b> 時會立即標記觸發，並在該玩家<b>下一個己方回合開始時</b>額外抽 1 張牌且獲得 +1 點臨時糧草，用來避免前期略處下風就一路被滾雪球。每名玩家每場對局僅觸發 1 次，即使之後回復國力高於 20 再跌落也不會重複觸發。</p>
@@ -1121,8 +1204,8 @@
     const m = document.getElementById('modal-root');
     if (!m) return;
     m.innerHTML = `
-      <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4" data-close-modal="1">
-        <div class="bg-[#141925] gold-border rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-3.5" onclick="event.stopPropagation()">
+      <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4" data-close-backdrop="1">
+        <div class="bg-[#141925] gold-border rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-3.5">
           <div class="flex items-start justify-between gap-3">
             <div class="flex items-center gap-2.5 min-w-0">
               <div class="w-11 h-11 rounded-xl bg-slate-800 border border-amber-500/40 flex items-center justify-center text-2xl shrink-0">${def.icon || cardOrUnit.icon || '🃏'}</div>
@@ -1153,6 +1236,9 @@
           </div>
           ${def.flavor ? `<p class="text-xs italic text-amber-300/80 px-1">${def.flavor}</p>` : ''}
           ${effectsHtml}
+          <div class="pt-2 border-t border-slate-800 flex justify-end">
+            <button type="button" data-close-modal="1" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-600">關閉</button>
+          </div>
         </div>
       </div>
     `;

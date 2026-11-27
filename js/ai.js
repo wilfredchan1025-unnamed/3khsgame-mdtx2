@@ -451,6 +451,8 @@
   }
 
   function pickBestActionBeam(G, aiIdx, cfg) {
+    const startMs = Date.now();
+    const TIME_BUDGET_MS = 320;
     let beam = [{ state: cloneState(G), firstAction: null, score: evaluateState(G, aiIdx) }];
     const completed = [];
 
@@ -464,8 +466,10 @@
     }
 
     for (let depth = 0; depth < cfg.maxDepth; depth++) {
+      if (Date.now() - startMs > TIME_BUDGET_MS) break;
       const nextBeam = [];
       for (const node of beam) {
+        if (Date.now() - startMs > TIME_BUDGET_MS) break;
         const st = node.state;
         if (st.phase === 'GAMEOVER' || st.activePlayer !== aiIdx) {
           completed.push(node);
@@ -528,6 +532,7 @@
       let best = topCandidates[0];
       let bestScore = -Infinity;
       for (const cand of topCandidates) {
+        if (Date.now() - startMs > TIME_BUDGET_MS + 120) break;
         const replyScore = evaluateAfterOpponentReply(cand.state, aiIdx);
         const blended = cand.score * 0.35 + replyScore * 0.65;
         if (blended > bestScore) {
@@ -576,6 +581,7 @@
 
   function runAIStep(G) {
     if (!G || G.phase !== 'MAIN' || !G.players[G.activePlayer].isAI) return false;
+    if (G.pendingPrompt && G.pendingPrompt.owner !== G.activePlayer) return false;
     const aiIdx = G.activePlayer;
     const diff = getAIDifficulty(G, aiIdx);
     const cfg = AI_DIFFICULTIES[diff] || AI_DIFFICULTIES.normal;
