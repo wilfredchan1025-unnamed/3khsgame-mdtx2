@@ -403,7 +403,7 @@
         <div class="min-w-0">
           <div class="flex items-center gap-1.5">
             <span class="font-serif-tc text-lg font-extrabold text-amber-50 truncate">${c.name}</span>
-            <div class="flex items-center gap-1 shrink-0"><button type="button" data-inspect-unit="${ownerIdx}:${slotIdx}" title="查看完整說明" class="w-5 h-5 rounded-full bg-slate-800/90 hover:bg-amber-500 hover:text-slate-950 text-amber-200 text-[10px] font-bold flex items-center justify-center border border-amber-500/40">ⓘ</button><span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span></div>
+            <span class="text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${f.badgeBg}">${f.name}</span>
           </div>
           <p class="text-xs text-slate-200 mt-1 leading-relaxed">${c.text}</p>${c.flavor ? `<p class="text-[10px] italic text-amber-300/80 mt-1">${c.flavor}</p>` : ''}
         </div>
@@ -1686,7 +1686,7 @@
             <span class="text-base leading-none">${u.icon}</span>
             <span class="font-serif-tc font-bold text-xs sm:text-sm text-amber-50 truncate">${u.name}</span>
           </div>
-          <span class="text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${f.badgeBg}">${f.name}</span>
+          <div class="flex items-center gap-1 shrink-0"><button type="button" data-inspect-unit="${ownerIdx}:${slotIdx}" title="查看完整說明" class="w-5 h-5 rounded-full bg-slate-800/90 hover:bg-amber-500 hover:text-slate-950 text-amber-200 text-[10px] font-bold flex items-center justify-center border border-amber-500/40">ⓘ</button><span class="text-[10px] px-1.5 py-0.5 rounded border ${f.badgeBg}">${f.name}</span></div>
         </div>
 
         <div class="flex flex-wrap gap-1 my-1">
