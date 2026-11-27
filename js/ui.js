@@ -311,29 +311,45 @@
         body.theme-light #app > :not(.fixed) .text-slate-400 {
           color: #475569 !important;
         }
-        body.theme-light #app > :not(.fixed) .text-amber-200,
-        body.theme-light #app > :not(.fixed) .text-amber-300,
-        body.theme-light #app > :not(.fixed) .text-yellow-300 {
+        body.theme-light #app > :not(.fixed) [class*="text-amber-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-amber-300"],
+        body.theme-light #app > :not(.fixed) [class*="text-yellow-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-yellow-300"] {
           color: #92400e !important;
         }
-        body.theme-light #app > :not(.fixed) .text-emerald-200,
-        body.theme-light #app > :not(.fixed) .text-emerald-300 {
+        body.theme-light #app > :not(.fixed) [class*="text-orange-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-orange-300"] {
+          color: #9a3412 !important;
+        }
+        body.theme-light #app > :not(.fixed) [class*="text-fuchsia-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-fuchsia-300"] {
+          color: #86198f !important;
+        }
+        body.theme-light #app > :not(.fixed) [class*="text-cyan-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-cyan-300"] {
+          color: #155e75 !important;
+        }
+        body.theme-light #app > :not(.fixed) [class*="text-emerald-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-emerald-300"] {
           color: #065f46 !important;
         }
-        body.theme-light #app > :not(.fixed) .text-sky-300,
-        body.theme-light #app > :not(.fixed) .text-blue-300 {
+        body.theme-light #app > :not(.fixed) [class*="text-sky-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-sky-300"],
+        body.theme-light #app > :not(.fixed) [class*="text-blue-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-blue-300"] {
           color: #075985 !important;
         }
-        body.theme-light #app > :not(.fixed) .text-rose-200,
-        body.theme-light #app > :not(.fixed) .text-rose-300,
-        body.theme-light #app > :not(.fixed) .text-rose-400,
-        body.theme-light #app > :not(.fixed) .text-red-300 {
+        body.theme-light #app > :not(.fixed) [class*="text-rose-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-rose-300"],
+        body.theme-light #app > :not(.fixed) [class*="text-rose-400"],
+        body.theme-light #app > :not(.fixed) [class*="text-red-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-red-300"] {
           color: #9f1239 !important;
         }
-        body.theme-light #app > :not(.fixed) .text-indigo-100,
-        body.theme-light #app > :not(.fixed) .text-indigo-200,
-        body.theme-light #app > :not(.fixed) .text-purple-200,
-        body.theme-light #app > :not(.fixed) .text-purple-300 {
+        body.theme-light #app > :not(.fixed) [class*="text-indigo-100"],
+        body.theme-light #app > :not(.fixed) [class*="text-indigo-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-purple-200"],
+        body.theme-light #app > :not(.fixed) [class*="text-purple-300"] {
           color: #3730a3 !important;
         }
         /* 卡牌費用球（糧草不足時 bg-slate-700）：改為淺紅宣紙底配深朱砂紅字；夠糧時維持金底黑字 */
